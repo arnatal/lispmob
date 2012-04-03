@@ -1,0 +1,37 @@
+--- lispd_nat_lib.c	2012-03-20 17:19:16.000000000 +0100
++++ lispd_nat_lib_mod.c	2012-03-20 18:55:30.381465331 +0100
+@@ -62,6 +62,13 @@
+ #include "lispd_external.h"
+ 
+ 
++//modified by arnatal
++/* Temporal. For NAT traversal testing implementation purpose. 
++ * To be removed when it's done
++ */ 
++#define RTR_TEST_RLOC	"192.168.56.102"
++#define RTR_TEST_RLOC_AFI	AF_INET
++
+ /* 
+  * void parameter function just to avoid to write the default values of
+  * build_and_send_info_request function
+@@ -89,6 +96,11 @@
+     
+     syslog(LOG_DAEMON, "Sending Info-Request packet");
+ 
++    //Until Map Server support Info Request we hardcoded a Dummy Map-Server/RTR //XXX TODO FIXME
++
++    lisp_addr_t dummy_server =
++        inet_lisp_addr(RTR_TEST_RLOC, RTR_TEST_RLOC_AFI);
++
+     build_and_send_info_request(build_nonce((unsigned int) time(NULL)), 
+                                 map_servers->key_type, 
+                                 map_servers->key, 
+@@ -97,7 +109,7 @@
+                                 &eid_address, 
+                                 &(ctrl_iface->AF4_locators->head->db_entry->locator), 
+                                 LISP_CONTROL_PORT, 
+-                                map_servers->address,
++                                &dummy_server, //map_servers->address,
+                                 LISP_CONTROL_PORT);
+ 
+ 

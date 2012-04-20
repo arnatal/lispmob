@@ -26,11 +26,11 @@ OBJS		= cmdline.o lispd_config.o lispd_syslog.o	\
 		  lispd_iface_list.o lispd_info_request.o lispd_info_reply.o lispd_nat_lib.o lispd_info_nat.o \
 		  rtr_lib.o
 
-EXE1	= NTR_dummy_client 
-EXE2    = NTR_dummy_server
+EXE1	= RTR_dummy_client 
+EXE2    = RTR_dummy_server
 
-OBJ1	= NTR_dummy_client.o
-OBJ2    = NTR_dummy_server.o
+OBJ1	= RTR_dummy_client.o
+OBJ2    = RTR_dummy_server.o
 
 PREFIX		= /usr/local/sbin
 

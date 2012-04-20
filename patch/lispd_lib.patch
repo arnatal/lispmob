@@ -1,10 +1,12 @@
---- lispd_lib.c	2012-03-20 18:52:26.000000000 +0100
-+++ lispd_lib_mod.c	2012-03-20 19:29:12.132430115 +0100
-@@ -54,8 +54,18 @@
+--- lispd_lib.c	2012-03-23 20:02:40.000000000 +0100
++++ lispd_lib_mod.c	2012-04-20 14:15:43.358640173 +0200
+@@ -54,8 +54,21 @@
  #include <sys/types.h>
  #include <unistd.h>
  #include "linux/netlink.h"
-+//modified by arnatal. For testing purpose. XXX TODO FIXME
++
++
++//modified by arnatal. For testing purpose. 
 +#define RUNNING_ON_RTR
 +
 +#ifdef RUNNING_ON_RTR
@@ -16,15 +18,15 @@
  #include "lispd_external.h"
  
 +#endif
++
  /*
   *      build_receive_sockets
   *
-@@ -1378,31 +1388,65 @@
+@@ -1378,31 +1391,59 @@
  #ifdef DEBUG
          syslog(LOG_DAEMON, "Received a LISP Encapsulated Map-Request message");
  #endif
 -        if(!process_map_request_msg(packet, s, from, afi))
-+      
 +#ifdef RUNNING_ON_RTR
 +        if (!process_ecm_map_register_msg(packet, s, from, afi))
 +            return (0);
@@ -38,7 +40,6 @@
          syslog(LOG_DAEMON, "Received a LISP Map-Request message");
  #endif
 -        if(!process_map_request_msg(packet, s, from, afi))
-+
 +#ifdef RUNNING_ON_RTR
 +        return (0);
 +#else
@@ -47,12 +48,10 @@
 +#endif
          break;
 -    case LISP_MAP_REGISTER:     //Got Map-Register, silently ignore
-+
-+    case LISP_MAP_REGISTER:    //Got Map-Register, 
++    case LISP_MAP_REGISTER:     //Got Map-Register
 +#ifdef DEBUG
 +        syslog(LOG_DAEMON, "Received a LISP Map-Register message");
 +#endif
-+    
 +#ifdef RUNNING_ON_RTR
 +        if (!process_map_register_msg(packet, s, from, afi))
 +            return (0);
@@ -60,14 +59,11 @@
 +        return (0);
 +#endif
          break;
--	case LISP_INFO_NAT:      //Got Info-Request/Info-Replay
-+    case LISP_INFO_NAT:        //Got Info-Request/Reply, 
+ 	case LISP_INFO_NAT:      //Got Info-Request/Info-Replay
  #ifdef DEBUG
--        syslog(LOG_DAEMON, "Received a LISP Info-Request/Info-Replay message");
-+        syslog(LOG_DAEMON, "Received a LISP Info-Request/Reply message");
+         syslog(LOG_DAEMON, "Received a LISP Info-Request/Info-Replay message");
  #endif
 -        if(!process_info_nat_msg(packet, s, from, afi))
-+
 +#ifdef RUNNING_ON_RTR
 +        if (!rtr_process_info_nat_msg(packet, s, from, afi))
 +            return (0);
@@ -82,7 +78,6 @@
  #endif
 -        if(!process_map_notify(packet))
 -            return(0);
-+
 +#ifdef RUNNING_ON_RTR
 +        if (!rtr_process_map_notify_msg(packet, s, from, afi))
 +            return (0);

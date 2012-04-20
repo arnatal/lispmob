@@ -22,7 +22,7 @@
 #include <sys/timerfd.h>
 #include <net/if.h>
 
-
+ 
 #include "rtr_external.h"
 
 #define BUFLEN 512
@@ -30,40 +30,15 @@
 #define RUNNING_ON_RTR
 
 
-
+// from lispd.c
 void event_loop(void);
 void signal_handler(int);
 void callback_elt(datacache_elt_t *);
-
-/*
- *      global (more or less) vars
- *
- */
-
-/*
- *      database and map cache
- */
-
 lispd_database_t *lispd_database = NULL;
 lispd_map_cache_t *lispd_map_cache = NULL;
-
-/*
- *      next gen database
- */
-
 patricia_tree_t *AF4_database = NULL;
 patricia_tree_t *AF6_database = NULL;
-
-/*
- *      data cache
- */
-
 datacache_t *datacache;
-
-/*
- *      config paramaters
- */
-
 lispd_addr_list_t *map_resolvers = 0;
 lispd_addr_list_t *proxy_etrs = 0;
 lispd_addr_list_t *proxy_itrs = 0;
@@ -78,16 +53,9 @@ int daemonize = 0;
 int map_request_retries = DEFAULT_MAP_REQUEST_RETRIES;
 int control_port = LISP_CONTROL_PORT;
 uint32_t iseed = 0;             /* initial random number generator */
-/*
- *      various globals
- */
-
 char msg[128];                  /* syslog msg buffer */
 pid_t pid = 0;                  /* child pid */
 pid_t sid = 0;
-/*
- *      sockets (fds)
- */
 int v6_receive_fd = 0;
 int v4_receive_fd = 0;
 int netlink_fd = 0;
@@ -95,27 +63,17 @@ fd_set readfds;
 struct sockaddr_nl dst_addr;
 struct sockaddr_nl src_addr;
 nlsock_handle nlh;
-/*
- *      timers (fds)
- */
 int map_register_timer_fd = 0;
 
-/* 
- * Interface on which control messages
- * are sent
- */
 iface_list_elt *ctrl_iface = NULL;
 //lispd_addr_t source_rloc;
 lisp_addr_t source_rloc;
 
 
+
 int nat_aware = FALSE;
 int behind_nat = UNKNOWN;
 
-
-/*
- *      socket data
- */
 
 int v4_fordward_fd = 0;
 
@@ -134,7 +92,7 @@ void error(const char *msg)
 
 
 
-build_fordward_socket()
+int build_fordward_socket()
 {
 
     struct protoent *proto;
@@ -183,7 +141,7 @@ int main(int argc, char **argv)
 
     int max_fd;
     fd_set readfds;
-    time_t curr, prev;          //Modified by acabello
+    time_t curr, prev;          
 
     struct sockaddr_in si_local, si_remote;
     int s;
@@ -212,14 +170,6 @@ int main(int argc, char **argv)
     rtr_addr = inet_lisp_addr(RTR_TEST_RLOC, RTR_TEST_RLOC_AFI);
     rtr_port = LISP_DATA_PORT;
 
-    /*
-     *  calculate the max_fd for select. Is there a better way
-     *  to do this?
-     */
-
-    /*
-     * now build the v4/v6 receive sockets
-     */
 
     if (build_receive_sockets() == 0)
         exit(EXIT_FAILURE);
@@ -228,8 +178,7 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
 
 
-    max_fd =
-        (v4_receive_fd > v6_receive_fd) ? v4_receive_fd : v6_receive_fd;
+    max_fd = (v4_receive_fd > v6_receive_fd) ? v4_receive_fd : v6_receive_fd;
     max_fd = (max_fd > v4_fordward_fd) ? max_fd : v4_fordward_fd;
 
     for (EVER) {
@@ -242,15 +191,23 @@ int main(int argc, char **argv)
             break;              /* news is bad */
         if (FD_ISSET(v4_receive_fd, &readfds))
             process_lisp_msg(v4_receive_fd, AF_INET);
+		
         if (FD_ISSET(v6_receive_fd, &readfds))
             process_lisp_msg(v6_receive_fd, AF_INET6);
+		
         if (FD_ISSET(v4_fordward_fd, &readfds)) {
+			
             printf("## DATA PACKET RECEIVED ##\n");
+			
             memset(&s4, 0, sizeof(struct sockaddr_in));
+			
             len_pkt = recvfrom(v4_fordward_fd,
-                         packet,
-                         MAX_IP_PACKET,
-                         0, (struct sockaddr *) &s4, &fromlen4);
+                               packet,
+                               MAX_IP_PACKET,
+                               0,
+                               (struct sockaddr *) &s4,
+                               &fromlen4);
+			
 			if (len_pkt< 0) {
                 syslog(LOG_DAEMON, "recvfrom (v4): %s", strerror(errno));
                 return (0);
@@ -258,19 +215,18 @@ int main(int argc, char **argv)
 
             get_source_address_and_port((struct sockaddr *) &s4,
                                         &orig_from_addr,
-                                        (uint16_t *) & orig_from_port);
+                                        (uint16_t *) &orig_from_port);
 
 
             rewrited_from_port = LISP_DATA_PORT;
-            rewrited_from_addr =
-                inet_lisp_addr(RTR_TEST_RLOC, RTR_TEST_RLOC_AFI);
+            rewrited_from_addr = inet_lisp_addr(RTR_TEST_RLOC, RTR_TEST_RLOC_AFI);
 
             /* Packet comes from the MN */
             if (TRUE ==
                 compare_lisp_addresses(&orig_from_addr, &global_mn_rloc)) {
                 rewrited_dest_addr = inet_lisp_addr(PEER_ADD, AF_INET); //hardcoded destination
                 rewrited_dest_port = LISP_DATA_PORT;
-                /* Packet goes to the MN */
+            /* Packet goes to the MN */
             } else {
                 rewrited_dest_addr = global_mn_rloc;
                 rewrited_dest_port = global_mn_port;
@@ -280,9 +236,12 @@ int main(int argc, char **argv)
                         len_pkt,
                         &rewrited_from_addr,
                         rewrited_from_port,
-                        &rewrited_dest_addr, rewrited_dest_port);
+                        &rewrited_dest_addr, 
+                        rewrited_dest_port);
         }
     }
+
+	return(0);
 }
 
 

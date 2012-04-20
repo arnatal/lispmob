@@ -20,66 +20,34 @@
 #include <sys/ioctl.h>
 #include <sys/timerfd.h>
 #include <net/if.h>
+ 
 
-
-#include "lispd_external.h"
+#include "rtr_external.h"
 
 
 #define BUFLEN             512
 
-//modified by arnatal
-/* Temporal. For NAT traversal testing implementation purpose. 
- * To be removed when it's done
- */ 
-#define RTR_TEST_RLOC	"192.168.56.102"
-#define RTR_TEST_RLOC_AFI	AF_INET
-
 
 //modified by arnatal
 // Temporal NAT traversal testing implementation purpose. 
-// To be removed when it's done
-#define EID_PREFIX "192.168.7.1"        //"123.213.111.178"
+
+#define EID_PREFIX "192.168.7.1"       
 #define EID_AFI AF_INET
 #define RLOC_PREFIX "123.123.123.123"
 #define RLOC_AFI AF_INET
-#define SERVER_ADD "192.168.56.102"
+#define SERVER_ADDR "192.168.56.102"
 #define SERVER_AFI AF_INET
 #define SOURCE_ADDR "192.168.56.101"
 
-
+//from lispd.c
 void event_loop(void);
 void signal_handler(int);
 void callback_elt(datacache_elt_t *);
-
-/*
- *      global (more or less) vars
- *
- */
-
-/*
- *      database and map cache
- */
-
 lispd_database_t *lispd_database = NULL;
 lispd_map_cache_t *lispd_map_cache = NULL;
-
-/*
- *      next gen database
- */
-
 patricia_tree_t *AF4_database = NULL;
 patricia_tree_t *AF6_database = NULL;
-
-/*
- *      data cache
- */
-
 datacache_t *datacache;
-
-/*
- *      config paramaters
- */
-
 lispd_addr_list_t *map_resolvers = 0;
 lispd_addr_list_t *proxy_etrs = 0;
 lispd_addr_list_t *proxy_itrs = 0;
@@ -93,17 +61,12 @@ int debug = 0;
 int daemonize = 0;
 int map_request_retries = DEFAULT_MAP_REQUEST_RETRIES;
 int control_port = LISP_CONTROL_PORT;
-uint32_t iseed = 0;             /* initial random number generator */
-/*
- *      various globals
- */
-
+uint32_t iseed = 0;             
 char msg[128];                  /* syslog msg buffer */
 pid_t pid = 0;                  /* child pid */
 pid_t sid = 0;
-/*
- *      sockets (fds)
- */
+
+
 int v6_receive_fd = 0;
 int v4_receive_fd = 0;
 int netlink_fd = 0;
@@ -156,20 +119,23 @@ int main(int argc, char **argv)
     eid_prefix = inet_lisp_addr(EID_PREFIX, EID_AFI);
 
 
-//~ typedef struct {
-    //~ lisp_addr_t     eid_prefix;
-    //~ uint16_t        eid_prefix_length;
-    //~ uint16_t        eid_prefix_afi; 
-    //~ lisp_addr_t     locator;
-    //~ uint16_t        locator_afi;
-    //~ uint8_t         locator_type:2;
-    //~ uint8_t         reserved:6;
-    //~ char *          locator_name;
-    //~ uint8_t         priority;
-    //~ uint8_t         weight;
-    //~ uint8_t         mpriority;
-    //~ uint8_t         mweight;
-//~ } lispd_db_entry_t;
+    /*******  BEGIN Generate a locator chain *********/
+
+
+	//~ typedef struct {
+		//~ lisp_addr_t     eid_prefix;
+		//~ uint16_t        eid_prefix_length;
+		//~ uint16_t        eid_prefix_afi; 
+		//~ lisp_addr_t     locator;
+		//~ uint16_t        locator_afi;
+		//~ uint8_t         locator_type:2;
+		//~ uint8_t         reserved:6;
+		//~ char *          locator_name;
+		//~ uint8_t         priority;
+		//~ uint8_t         weight;
+		//~ uint8_t         mpriority;
+		//~ uint8_t         mweight;
+	//~ } lispd_db_entry_t;
 
     lispd_db_entry_t *db_entry;
 
@@ -188,11 +154,11 @@ int main(int argc, char **argv)
 
 
 
-//~ typedef struct lispd_locator_chain_elt_t_ {
-    //~ lispd_db_entry_t                    *db_entry;
-    //~ char                                *locator_name;
-    //~ struct lispd_locator_chain_elt_t_   *next;
-//~ } lispd_locator_chain_elt_t;
+	//~ typedef struct lispd_locator_chain_elt_t_ {
+		//~ lispd_db_entry_t                    *db_entry;
+		//~ char                                *locator_name;
+		//~ struct lispd_locator_chain_elt_t_   *next;
+	//~ } lispd_locator_chain_elt_t;
 
     lispd_locator_chain_elt_t *locator_chain_elt;
 
@@ -206,20 +172,20 @@ int main(int argc, char **argv)
 
 
 
-//~ typedef struct {                        /* chain per eid-prefix/len/afi */
-    //~ int         mrp_len;                /* map register packet length */
-    //~ uint32_t    timer;                  /* send map_register w timer expires */
-    //~ ushort      locator_count;          /* number of mappings, 1 locator/per */
-    //~ lisp_addr_t eid_prefix;             /* eid_prefix for this chain */
-    //~ uint8_t     eid_prefix_length;      /* eid_prefix_length for this chain */
-    //~ uint16_t    eid_prefix_afi;         /* eid_prefix_afi for this chain */
-    //~ char        *eid_name;              /* eid_prefix_afi for this chain */
-    //~ uint8_t     has_dynamic_locators:1; /* append dynamic/fqdn to front */
-    //~ uint8_t     has_fqdn_locators:1;
-    //~ uint8_t     reserved:6; 
-    //~ lispd_locator_chain_elt_t *head;    /* first entry in chain */
-    //~ lispd_locator_chain_elt_t *tail;    /* last entry in chain */
-//~ } lispd_locator_chain_t;
+	//~ typedef struct {                        /* chain per eid-prefix/len/afi */
+		//~ int         mrp_len;                /* map register packet length */
+		//~ uint32_t    timer;                  /* send map_register w timer expires */
+		//~ ushort      locator_count;          /* number of mappings, 1 locator/per */
+		//~ lisp_addr_t eid_prefix;             /* eid_prefix for this chain */
+		//~ uint8_t     eid_prefix_length;      /* eid_prefix_length for this chain */
+		//~ uint16_t    eid_prefix_afi;         /* eid_prefix_afi for this chain */
+		//~ char        *eid_name;              /* eid_prefix_afi for this chain */
+		//~ uint8_t     has_dynamic_locators:1; /* append dynamic/fqdn to front */
+		//~ uint8_t     has_fqdn_locators:1;
+		//~ uint8_t     reserved:6; 
+		//~ lispd_locator_chain_elt_t *head;    /* first entry in chain */
+		//~ lispd_locator_chain_elt_t *tail;    /* last entry in chain */
+	//~ } lispd_locator_chain_t;
 
     lispd_locator_chain_t *locator_chain;
 
@@ -234,17 +200,15 @@ int main(int argc, char **argv)
     locator_chain->eid_prefix_length = 32;
     //locator_chain->eid_prefix_afi=EID_AFI;
     locator_chain->eid_name = "eidname";
-
     locator_chain->head = locator_chain_elt;
     locator_chain->tail = locator_chain_elt;
 
 
-    lispd_pkt_map_register_t *map_register_pkt;
+    /*******  END Generate a locator_chain *********/
 
-
-
-
-
+	
+	/*******  BEGIN Generate a map_server_list *********/
+	
     //~ typedef struct  {
     //~ lisp_addr_t address;
     //~ uint16_t    afi;
@@ -252,7 +216,7 @@ int main(int argc, char **argv)
 
     lisp_addr_t ms_address;
 
-    ms_address = inet_lisp_addr(SERVER_ADD, SERVER_AFI);
+    ms_address = inet_lisp_addr(SERVER_ADDR, SERVER_AFI);
     //ms_address.afi=SERVER_AFI;
 
 
@@ -265,33 +229,33 @@ int main(int argc, char **argv)
     //~ struct _lispd_map_server_list_t *next;
     //~ } lispd_map_server_list_t;
 
-
     lispd_map_server_list_t *map_server_list;
 
     map_server_list =
         (lispd_map_server_list_t *)
         malloc(sizeof(lispd_map_server_list_t));
 
-
     map_server_list->address = &ms_address;
     map_server_list->key_type = KEY_TYPE;
     map_server_list->key = KEY;
     map_server_list->proxy_reply = 1;
-
     map_server_list->next = NULL;
 
+    /*******  END Generate a map_server_list *********/
 
-    lisp_addr_t vbox1 = inet_lisp_addr("192.168.56.101", AF_INET);
-    lisp_addr_t vbox2 = inet_lisp_addr("192.168.56.102", AF_INET);
-    lisp_addr_t vbox3 = inet_lisp_addr("192.168.56.103", AF_INET);
+	
+
+    lisp_addr_t vbox1 = inet_lisp_addr(SOURCE_ADDR, AF_INET);
+    lisp_addr_t vbox2 = inet_lisp_addr(SERVER_ADDR, AF_INET);
+   
 
 
     //source_address = inet_lisp_addr(SOURCE_ADDR,AF_INET);
-    source_address = inet_lisp_addr(SERVER_ADD, AF_INET);
+    //source_address = inet_lisp_addr(SERVER_ADD, AF_INET);
 
     // Data socket
 
-    srv_addr = SERVER_ADD;
+    srv_addr = SERVER_ADDR;
 
     if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
         error("socket");
@@ -308,13 +272,17 @@ int main(int argc, char **argv)
     printf("Sending ECM Map Register\n");
 
 
-    build_and_send_ecm_map_register(locator_chain, &(vbox1), &vbox1, LISP_CONTROL_PORT, LISP_CONTROL_PORT, &(vbox1), &(vbox2),  //source addres is the address of the client
-                                    LISP_CONTROL_PORT,
+    build_and_send_ecm_map_register(locator_chain, 
+                                    &vbox1, 
+                                    &vbox2, 
+                                    LISP_CONTROL_PORT, 
+                                    LISP_CONTROL_PORT, 
+                                    &vbox1, 
+                                    &vbox2,  //source addres is the address of the client
+                                    LISP_DATA_PORT,
                                     LISP_CONTROL_PORT,
                                     map_server_list->key_type,
                                     map_server_list->key);
-
-
 
 
     if (locator_chain) {
@@ -336,6 +304,7 @@ int main(int argc, char **argv)
            LISP_CONTROL_PORT);
 
          */
+		
         //build_and_send_info_request(locator_chain,map_server_list,SOURCE_ADDR);
 
         /*
@@ -362,21 +331,13 @@ int main(int argc, char **argv)
     struct sockaddr_in s4;
     uint8_t packet[MAX_IP_PACKET];
 
-    /*
-     *  calculate the max_fd for select. Is there a better way
-     *  to do this?
-     */
-
-    /*
-     * now build the v4/v6 receive sockets
-     */
+    
 
     if (build_receive_sockets() == 0)
         exit(EXIT_FAILURE);
 
 
-    max_fd =
-        (v4_receive_fd > v6_receive_fd) ? v4_receive_fd : v6_receive_fd;
+    max_fd = (v4_receive_fd > v6_receive_fd) ? v4_receive_fd : v6_receive_fd;
 
 
     printf("Waiting for packets....\n");

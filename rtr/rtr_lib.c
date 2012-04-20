@@ -78,7 +78,7 @@ lisp_addr_t *outer_addr_dest;
 unsigned int outer_port_from;
 unsigned int outer_port_dest;
 {
- 
+   
 
     uint8_t *data_map_notify;
 
@@ -127,12 +127,12 @@ int process_info_request_msg(uint8_t * packet, int s,
                              struct sockaddr *from, int afi)
 {
 
-    lispd_pkt_info_nat_t *irp;
-    lispd_pkt_info_nat_eid_t *irp_eid;
-    lispd_pkt_info_request_lcaf_t *irp_lcaf;
+    //lispd_pkt_info_nat_t *irp;
+    //lispd_pkt_info_nat_eid_t *irp_eid;
+    //lispd_pkt_info_request_lcaf_t *irp_lcaf;
 
 
-    uint16_t from_afi_inet;
+    //uint16_t from_afi_inet;
     uint16_t from_port;
 
 
@@ -148,24 +148,24 @@ int process_info_request_msg(uint8_t * packet, int s,
     uint32_t ttl;
     uint8_t eid_mask_len;
 
-    uint16_t eid_prefix_afi;
-    uint16_t eid_prefix_afi_inet;
+    //uint16_t eid_prefix_afi;
+    //uint16_t eid_prefix_afi_inet;
 
-    uint16_t lcaf_afi;
-    uint8_t flags;
-    uint8_t lcaf_type;
+    //uint16_t lcaf_afi;
+    //uint8_t flags;
+    //uint8_t lcaf_type;
 
     lisp_addr_t eid_prefix;
 
 
-    char *eid_name;
-    char *from_addr_name;
+    //char *eid_name;
+    //char *from_addr_name;
 
-    lisp_addr_t *eid_addr;
+    //lisp_addr_t *eid_addr;
 
     unsigned int hdr_len;
 
-    lispd_map_server_list_t map_server;
+    //lispd_map_server_list_t map_server;
     //lispd_addr_t aux_addr;
 
     lisp_addr_t global_etr_rloc;
@@ -181,11 +181,11 @@ int process_info_request_msg(uint8_t * packet, int s,
      * Get source port and address. 
      * IPv4 and IPv6 support
      */
+ 
 
+    //irp = (lispd_pkt_info_nat_t *) packet;
 
-    irp = (lispd_pkt_info_nat_t *) packet;
-
-
+    
     hdr_len = extract_info_nat_header((lispd_pkt_info_nat_t *) packet,
                                       &lisp_type,
                                       &reply,
@@ -222,25 +222,20 @@ int process_info_request_msg(uint8_t * packet, int s,
 
     //printf("eid_prefix_afi_from_lisp_addr %d\n",eid_prefix->afi);
 
-    irp_lcaf =
-        (lispd_pkt_info_request_lcaf_t *) CO(irp,
-                                             hdr_len +
-                                             get_addr_len(eid_prefix.afi));
+    //irp_lcaf = (lispd_pkt_info_request_lcaf_t *) CO(irp, hdr_len + get_addr_len(eid_prefix.afi));
 
-    lcaf_afi = ntohs(irp_lcaf->lcaf_afi);
+    //lcaf_afi = ntohs(irp_lcaf->lcaf_afi);
 
     //printf("lcaf afi %d\n", lcaf_afi);
 
-    lcaf_type = irp_lcaf->lcaf_type;
+    //lcaf_type = irp_lcaf->lcaf_type;
 
     //printf("lcaf type %d\n", lcaf_type);
 
 
 
-    if (get_source_address_and_port(from, &global_etr_rloc, &from_port) ==
-        ERROR) {
-        syslog(LOG_DAEMON,
-               "process_info_request. Error retrieving source address and port");
+    if (get_source_address_and_port(from, &global_etr_rloc, &from_port) == ERROR) {
+        syslog(LOG_DAEMON, "process_info_request. Error retrieving source address and port");
         return (ERROR);
     }
 
@@ -275,7 +270,9 @@ int process_info_request_msg(uint8_t * packet, int s,
                               LISP_CONTROL_PORT,
                               from_port,
                               &global_etr_rloc,
-                              &ms_rloc, &private_etr_rloc, &rtr_rloc_list);
+                              &ms_rloc, 
+                              &private_etr_rloc, 
+                              &rtr_rloc_list);
 
 
     return (NO_ERROR);
@@ -320,12 +317,12 @@ uint32_t *pkt_len;
     unsigned int irp_len = 0;
     unsigned int header_len = 0;
     unsigned int lcaf_hdr_len = 0;
-    unsigned int lcaf_nat_len = 0;
+    //unsigned int lcaf_nat_len = 0;
 
-    unsigned short global_etr_rloc_length;
-    unsigned short ms_rloc_length;
-    unsigned short private_etr_rloc_length;
-    unsigned short rtr_rloc_length;
+    //unsigned short global_etr_rloc_length;
+    //unsigned short ms_rloc_length;
+    //unsigned short private_etr_rloc_length;
+    //unsigned short rtr_rloc_length;
 
     unsigned int lcaf_adds_len = 0;
     lisp_addr_list_t *rtr_rloc_itr;
@@ -360,8 +357,7 @@ uint32_t *pkt_len;
 
     while (rtr_rloc_itr != NULL) {
 
-        lcaf_adds_len +=
-            get_addr_len(rtr_rloc_itr->address->afi) + FIELD_AFI_LEN;
+        lcaf_adds_len += get_addr_len(rtr_rloc_itr->address->afi) + FIELD_AFI_LEN;
         rtr_rloc_itr = rtr_rloc_itr->next;
 
     }
@@ -445,9 +441,7 @@ uint32_t *pkt_len;
             return (NULL);
         }
 
-        ptr =
-            CO(ptr,
-               get_addr_len(rtr_rloc_itr->address->afi) + FIELD_AFI_LEN);
+        ptr = CO(ptr, get_addr_len(rtr_rloc_itr->address->afi) + FIELD_AFI_LEN);
 
         rtr_rloc_itr = rtr_rloc_itr->next;
 
@@ -535,7 +529,10 @@ lisp_addr_list_t *rtr_rloc_list;
     if (ERROR == send_packet(info_reply_pkt,
                              packet_len,
                              ms_rloc,
-                             ms_udp_port, global_etr_rloc, etr_udp_port)) {
+                             ms_udp_port, 
+                             global_etr_rloc, 
+                             etr_udp_port)) {
+								 
         syslog_with_address_name(LOG_DAEMON,
                                  "Couldn't send info-reply for",
                                  eid_prefix);
@@ -549,12 +546,14 @@ lisp_addr_list_t *rtr_rloc_list;
 
 
 
-int process_ecm_map_register_msg(uint8_t * packet, int s,
-                                 struct sockaddr *from, int afi)
+int process_ecm_map_register_msg(uint8_t * packet, 
+                                 int s,
+                                 struct sockaddr *from,
+                                 int afi)
 {
 
-    void *cur_ptr;
-    lisp_encap_control_hdr_t *encap_control_hdr;
+    //void *cur_ptr;
+    //lisp_encap_control_hdr_t *encap_control_hdr;
 
     struct ip *ip_hdr;
     lispd_pkt_map_register_t *map_reg_pkt;
@@ -583,9 +582,7 @@ int process_ecm_map_register_msg(uint8_t * packet, int s,
         return (ERROR);
     }
 	
-    ip_hdr =
-        (struct ip *) CO((void *) packet,
-                         sizeof(lisp_encap_control_hdr_t));
+    ip_hdr = (struct ip *) CO((void *) packet, sizeof(lisp_encap_control_hdr_t));
 
     dest_addr.address.ip = ip_hdr->ip_dst;
     dest_addr.afi = AF_INET;
@@ -594,9 +591,6 @@ int process_ecm_map_register_msg(uint8_t * packet, int s,
     //We get the local mn address from the inner header of ecm mrg msg
     local_mn_rloc.address.ip = ip_hdr->ip_src;
     local_mn_rloc.afi = AF_INET;
-
-    
-
 
 
     //We have to change the source address for our own
@@ -610,9 +604,7 @@ int process_ecm_map_register_msg(uint8_t * packet, int s,
 
     map_reg_pkt_len = ntohs(udp_hdr->len) - sizeof(struct udphdr);
 
-    map_reg_pkt =
-        (lispd_pkt_map_register_t *) CO((void *) udp_hdr,
-                                        sizeof(struct udphdr));
+    map_reg_pkt = (lispd_pkt_map_register_t *) CO((void *) udp_hdr, sizeof(struct udphdr));
 
     
 
@@ -651,15 +643,21 @@ int process_ecm_map_register_msg(uint8_t * packet, int s,
      */
 
 
-    send_packet((void *) map_reg_pkt, map_reg_pkt_len, &from_addr,
-                from_port, &dest_addr, dest_port);
+    send_packet((void *) map_reg_pkt,
+                map_reg_pkt_len, 
+                &from_addr,
+                from_port, 
+                &dest_addr, 
+                dest_port);
 
     return (NO_ERROR);
 }
 
 
-int rtr_process_map_notify_msg(uint8_t * packet, int s,
-                               struct sockaddr *from, int afi)
+int rtr_process_map_notify_msg(uint8_t *packet, 
+                               int s,
+                               struct sockaddr *from, 
+                               int afi)
 {
 
 
@@ -682,10 +680,8 @@ int rtr_process_map_notify_msg(uint8_t * packet, int s,
     map_notify_pkt_len = 64;
 
 
-    if (get_source_address_and_port(from, &ms_rloc, (uint16_t *) &ms_port)
-        == ERROR) {
-        syslog(LOG_DAEMON,
-               "process_info_request. Error retrieving source address and port");
+    if (get_source_address_and_port(from, &ms_rloc, (uint16_t *) &ms_port) == ERROR) {
+        syslog(LOG_DAEMON,"process_info_request. Error retrieving source address and port");
         return (ERROR);
     }
 
@@ -708,15 +704,17 @@ int rtr_process_map_notify_msg(uint8_t * packet, int s,
 
 }
 
-
+ 
 /*
  *  process Map_Register Message
  *  Receive a Map_register message and process based on control bits
  *  TODO Check authentication data
  */
 
-int process_map_register_msg(uint8_t * packet, int s,
-                             struct sockaddr *from, int afi)
+int process_map_register_msg(uint8_t * packet, 
+                             int s,
+                             struct sockaddr *from, 
+                             int afi)
 { 
 
     lispd_pkt_map_register_t *msg;
@@ -732,36 +730,36 @@ int process_map_register_msg(uint8_t * packet, int s,
     uint8_t lisp_type;
     uint8_t proxy_reply;
 
-    uint8_t notify;
+    //uint8_t notify;
 
     uint8_t record_count;
-    uint64_t nonce;
-    uint16_t key_id;
-    uint16_t auth_data_len;
-    uint8_t auth_data[LISP_SHA1_AUTH_DATA_LEN];
+    //uint64_t nonce;
+    //uint16_t key_id;
+    //uint16_t auth_data_len;
+    //uint8_t auth_data[LISP_SHA1_AUTH_DATA_LEN];
 
 
     uint32_t ttl;
     uint8_t locator_count;
-    uint8_t eid_prefix_length;
+    //uint8_t eid_prefix_length;
 
-    uint8_t action;
-    uint8_t authoritative;
+    //uint8_t action;
+    //uint8_t authoritative;
 
-    uint8_t version_hi;
+    //uint8_t version_hi;
 
-    uint8_t version_low;
+    //uint8_t version_low;
     uint16_t eid_prefix_afi_inet;
 
     uint16_t locator_afi_inet;
 
     char *locator_char;
 
-    char eid_char[INET_ADDRSTRLEN];
+    //char eid_char[INET_ADDRSTRLEN];
 
     char *eid_name;
 
-    lisp_addr_t *eid_addr;
+    //lisp_addr_t *eid_addr;
 
     printf("## PROCESING MAP REGISTER ##\n");
     syslog(LOG_DAEMON, "## PROCESING MAP REGISTER ##");
@@ -803,8 +801,7 @@ int process_map_register_msg(uint8_t * packet, int s,
 
         printf("locator count %d\n", locator_count);
 
-        eid_prefix_afi_inet =
-            lisp2inetafi(ntohs(mapping_record->eid_prefix_afi));
+        eid_prefix_afi_inet = lisp2inetafi(ntohs(mapping_record->eid_prefix_afi));
 
         printf("edi_prefix_afi %d\n", eid_prefix_afi_inet);
 
@@ -812,9 +809,7 @@ int process_map_register_msg(uint8_t * packet, int s,
 
 
 
-        if ((eid_name =
-             (char *) malloc(get_ntop_lisp_length(eid_prefix_afi_inet))) ==
-            NULL) {
+        if ((eid_name = (char *) malloc(get_ntop_lisp_length(eid_prefix_afi_inet))) == NULL) {
             syslog(LOG_DAEMON, "malloc (eid_name): %s", strerror(errno));
             return (0);
         }
@@ -834,8 +829,7 @@ int process_map_register_msg(uint8_t * packet, int s,
             record_locator = cur_ptr;
 
 
-            locator_afi_inet =
-                lisp2inetafi(ntohs(record_locator->locator_afi));
+            locator_afi_inet = lisp2inetafi(ntohs(record_locator->locator_afi));
 
             printf("locator afi %d\n", locator_afi_inet);
 
@@ -849,19 +843,14 @@ int process_map_register_msg(uint8_t * packet, int s,
 
 
 
-            cur_ptr =
-                CO(cur_ptr, sizeof(lispd_pkt_mapping_record_locator_t));
+            cur_ptr = CO(cur_ptr, sizeof(lispd_pkt_mapping_record_locator_t));
 
-            if ((locator_char =
-                 (char *) malloc(get_ntop_lisp_length(locator_afi_inet)))
-                == NULL) {
-                syslog(LOG_DAEMON, "malloc (locator_char): %s",
-                       strerror(errno));
+            if ((locator_char = (char *) malloc(get_ntop_lisp_length(locator_afi_inet))) == NULL) {
+                syslog(LOG_DAEMON, "malloc (locator_char): %s", strerror(errno));
                 return (0);
             }
 
-            locator_char =
-                inet_ntop_char(cur_ptr, locator_char, locator_afi_inet);
+            locator_char = inet_ntop_char(cur_ptr, locator_char, locator_afi_inet);
 
             printf("locator char %s\n", locator_char);
 

@@ -62,6 +62,7 @@
 #include "lispd_sockets.h"
 #include "lispd_timers.h"
 #include "lispd_tun.h"
+#include "lispd_nat_lib.h"
 
 
 void event_loop();
@@ -334,7 +335,12 @@ int main(int argc, char **argv)
     /*
      *  Register to the Map-Server(s)
      */
-
+    
+    nat_aware = TRUE;
+    behind_nat = UNKNOWN;
+    
+    //get_lisp_addr_from_char("1.1.1.1",&natt_rtr);
+    
     map_register (NULL,NULL);
 
     lispd_log_msg(LISP_LOG_INFO,"LISPmob (0.3.2): 'lispd' started...");

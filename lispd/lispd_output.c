@@ -34,6 +34,8 @@
 #include "lispd_pkt_lib.h"
 #include "lispd_sockets.h"
 
+#include "lispd_info_nat.h"
+
 
 
 void add_ip_header (
@@ -297,31 +299,22 @@ int forward_native(
 
 }
 
-
-int fordward_to_petr(
+int forward_to(
         lispd_iface_elt *iface,
         char            *original_packet,
         int             original_packet_length,
-        int             afi)
+        lisp_addr_t     *fwd_dst)
 {
-    lisp_addr_t *petr;
     lisp_addr_t *outer_src_addr;
     char *encap_packet;
     int  encap_packet_size;
 
     if (!iface){
-        lispd_log_msg(LISP_LOG_ERR, "fordward_to_petr: No output interface found");
+        lispd_log_msg(LISP_LOG_ERR, "forward_to: No output interface found");
         return (BAD);
     }
 
-    petr = get_proxy_etr(afi); 
-
-    if (petr == NULL){
-        lispd_log_msg(LISP_LOG_DEBUG_3, "Proxy-etr not found");
-        return (BAD);
-    }
-
-    switch (afi){
+    switch (fwd_dst->afi){
     case AF_INET:
         outer_src_addr = iface->ipv4_address;
         break;
@@ -333,7 +326,7 @@ int fordward_to_petr(
     if (encapsulate_packet(original_packet,
             original_packet_length,
             outer_src_addr,
-            petr,
+            fwd_dst,
             LISP_DATA_PORT,
             LISP_DATA_PORT,
             0,
@@ -346,12 +339,58 @@ int fordward_to_petr(
         free (encap_packet );
         return (BAD);
     }
-
-    lispd_log_msg(LISP_LOG_DEBUG_3, "Fordwarded eid %s to petr",get_char_from_lisp_addr_t(extract_dst_addr_from_packet(original_packet)));
+    
     free (encap_packet );
 
     return (GOOD);
 }
+
+int forward_to_petr(
+        lispd_iface_elt *iface,
+        char            *original_packet,
+        int             original_packet_length,
+        int             afi)
+{
+    lisp_addr_t *petr;
+
+    petr = get_proxy_etr(afi); 
+
+    if (petr == NULL){
+        lispd_log_msg(LISP_LOG_DEBUG_3, "Proxy-etr not found");
+        return (BAD);
+    }
+
+    lispd_log_msg(LISP_LOG_DEBUG_3, "Forwarding eid %s to petr",get_char_from_lisp_addr_t(extract_dst_addr_from_packet(original_packet)));
+
+    forward_to(iface,
+                original_packet,
+                original_packet_length,
+                petr);
+                
+    
+    return (GOOD);
+}
+
+/* Forward packet to NAT traversal RTR */
+
+int forward_to_natt_rtr(
+        lispd_iface_elt *iface,
+        char            *original_packet,
+        int             original_packet_length)
+{
+
+    // XXX Check if RTR exists? Check afi?
+
+    lispd_log_msg(LISP_LOG_DEBUG_3, "Forwarding eid %s to NAT RTR",get_char_from_lisp_addr_t(extract_dst_addr_from_packet(original_packet)));
+
+    forward_to(iface,
+                original_packet,
+                original_packet_length,
+                &natt_rtr);       
+    
+    return (GOOD);
+}
+
 
 lisp_addr_t extract_dst_addr_from_packet ( char *packet )
 {
@@ -712,6 +751,13 @@ int lisp_output (
         return (forward_native(original_packet,original_packet_length));
     }
 
+    if ((nat_aware==TRUE)&&(behind_nat==TRUE)){
+    
+        return (forward_to_natt_rtr(get_default_output_iface(AF_INET), //NAT only IPv4 (AF_INET)
+                                    original_packet,
+                                    original_packet_length));
+    }
+    
     entry = lookup_map_cache(tuple.dst_addr);
 
     //arnatal XXX: is this the correct error type?
@@ -725,7 +771,7 @@ int lisp_output (
         default_encap_afi = get_output_afi_based_on_petr();
 
         /* Try to fordward to petr*/
-        if (fordward_to_petr(get_default_output_iface(default_encap_afi), /* Use afi of original dst for encapsulation */
+        if (forward_to_petr(get_default_output_iface(default_encap_afi), /* Use afi of original dst for encapsulation */
                 original_packet,
                 original_packet_length,
                 default_encap_afi) != GOOD){

@@ -63,7 +63,7 @@
 #include "lispd_map_notify.h"
 #include "lispd_sockets.h"
 #include "patricia/patricia.h"
-
+#include "lispd_info_nat.h" 
 
 
 int isfqdn(char *s);
@@ -808,7 +808,7 @@ int process_lisp_ctr_msg(
     uint8_t             packet[MAX_IP_PACKET];
     lisp_addr_t         local_rloc;
     uint16_t            remote_port;
-
+    
     if  ( get_control_packet (sock, afi, packet, &local_rloc, &remote_port) != GOOD ){
         return BAD;
     }
@@ -831,6 +831,14 @@ int process_lisp_ctr_msg(
             return (BAD);
         break;
     case LISP_MAP_REGISTER:     //Got Map-Register, silently ignore
+        break;
+    case LISP_INFO_NAT:      //Got Info-Request/Info-Replay
+    
+        lispd_log_msg(LISP_LOG_DEBUG_1, "Received a LISP Info-Request/Info-Replay message");
+        
+        if(!process_info_nat_msg(packet)){
+            return (BAD);
+        }
         break;
     case LISP_MAP_NOTIFY:
         lispd_log_msg(LISP_LOG_DEBUG_1, "Received a LISP Map-Notify message");

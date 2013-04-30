@@ -43,7 +43,7 @@
 #include "lispd_sockets.h"
 #include "patricia/patricia.h"
 
-
+#include "lispd_nat_lib.h"
 
 
 lispd_pkt_map_register_t *build_map_register_pkt(
@@ -95,58 +95,83 @@ int map_register(
             continue;
         PATRICIA_WALK(tree->head, node) {
             mapping_elt = ((lispd_mapping_elt *)(node->data));
-            if (mapping_elt) {
-                if ((map_register_pkt =
-                        build_map_register_pkt(mapping_elt, &mrp_len)) == NULL) {
-                    lispd_log_msg(LISP_LOG_DEBUG_1, "map_register: Couldn't build map register packet");
-                    return(BAD);
+            
+            /* Quick NAT traversal port */
+            if((mapping_elt)&&(nat_aware==TRUE)){
+                
+                if(behind_nat == UNKNOWN){
+                    nat_info_request();
                 }
-
-                 //  for each map server, send a register, and if verify
-                 //  send a map-request for our eid prefix
-
-                ms = map_servers;
-
-                while (ms) {
-
-                    /*
-                     * Fill in proxy_reply and compute the HMAC with SHA-1.
-                     */
-
-                    map_register_pkt->proxy_reply = ms->proxy_reply;
-                    memset(map_register_pkt->auth_data,0,LISP_SHA1_AUTH_DATA_LEN);   /* make sure */
-
-                    if (!HMAC((const EVP_MD *) EVP_sha1(),
-                            (const void *) ms->key,
-                            strlen(ms->key),
-                            (uchar *) map_register_pkt,
-                            mrp_len,
-                            (uchar *) map_register_pkt->auth_data,
-                            &md_len)) {
-                        lispd_log_msg(LISP_LOG_DEBUG_1, "HMAC failed for map-register");
+                
+                if(behind_nat==TRUE){
+                    build_and_send_ecm_map_register(mapping_elt,
+                                    map_servers->proxy_reply,
+                                    default_ctrl_iface_v4->ipv4_address,
+                                    map_servers->address,
+                                    LISP_CONTROL_PORT,
+                                    LISP_CONTROL_PORT,
+                                    default_ctrl_iface_v4->ipv4_address,
+                                    &(natt_rtr),
+                                    LISP_DATA_PORT,
+                                    LISP_CONTROL_PORT,
+                                    map_servers->key_type,
+                                    map_servers->key);
+                }
+      
+            }else{
+                if ((mapping_elt)&&((nat_aware==FALSE)||(behind_nat==FALSE))) {
+                    if ((map_register_pkt =
+                            build_map_register_pkt(mapping_elt, &mrp_len)) == NULL) {
+                        lispd_log_msg(LISP_LOG_DEBUG_1, "map_register: Couldn't build map register packet");
                         return(BAD);
                     }
 
-                    /* Send the map register */
+                    //  for each map server, send a register, and if verify
+                    //  send a map-request for our eid prefix
 
-                    if ((err = send_map_register(ms->address,map_register_pkt,mrp_len)) == GOOD) {
-                        lispd_log_msg(LISP_LOG_DEBUG_1, "Sent map register for %s/%d to maps server %s",
-                                                       get_char_from_lisp_addr_t(mapping_elt->eid_prefix),
-                                                       mapping_elt->eid_prefix_length,
-                                                       get_char_from_lisp_addr_t(*(ms->address)));
-                        sent_map_registers++;
-                    }else {
-                        lispd_log_msg(LISP_LOG_WARNING, "Couldn't send map-register for %s",get_char_from_lisp_addr_t(mapping_elt->eid_prefix));
+                    ms = map_servers;
+
+                    while (ms) {
+
+                        /*
+                        * Fill in proxy_reply and compute the HMAC with SHA-1.
+                        */
+
+                        map_register_pkt->proxy_reply = ms->proxy_reply;
+                        memset(map_register_pkt->auth_data,0,LISP_SHA1_AUTH_DATA_LEN);   /* make sure */
+
+                        if (!HMAC((const EVP_MD *) EVP_sha1(),
+                                (const void *) ms->key,
+                                strlen(ms->key),
+                                (uchar *) map_register_pkt,
+                                mrp_len,
+                                (uchar *) map_register_pkt->auth_data,
+                                &md_len)) {
+                            lispd_log_msg(LISP_LOG_DEBUG_1, "HMAC failed for map-register");
+                            return(BAD);
+                        }
+
+                        /* Send the map register */
+
+                        if ((err = send_map_register(ms->address,map_register_pkt,mrp_len)) == GOOD) {
+                            lispd_log_msg(LISP_LOG_DEBUG_1, "Sent map register for %s/%d to maps server %s",
+                                                        get_char_from_lisp_addr_t(mapping_elt->eid_prefix),
+                                                        mapping_elt->eid_prefix_length,
+                                                        get_char_from_lisp_addr_t(*(ms->address)));
+                            sent_map_registers++;
+                        }else {
+                            lispd_log_msg(LISP_LOG_WARNING, "Couldn't send map-register for %s",get_char_from_lisp_addr_t(mapping_elt->eid_prefix));
+                        }
+                        ms = ms->next;
                     }
-                    ms = ms->next;
-                }
-                free(map_register_pkt);
+                    free(map_register_pkt);
 
-                if (sent_map_registers == 0){
-                    lispd_log_msg(LISP_LOG_CRIT, "Couldn't register %s. \n Exiting ...",get_char_from_lisp_addr_t(mapping_elt->eid_prefix));
-                    exit(EXIT_FAILURE);
+                    if (sent_map_registers == 0){
+                        lispd_log_msg(LISP_LOG_CRIT, "Couldn't register %s. \n Exiting ...",get_char_from_lisp_addr_t(mapping_elt->eid_prefix));
+                        exit(EXIT_FAILURE);
+                    }
+                    sent_map_registers = 0;
                 }
-                sent_map_registers = 0;
             }
         } PATRICIA_WALK_END;
     }

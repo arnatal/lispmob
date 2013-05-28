@@ -52,6 +52,36 @@ struct gengetopt_args_info
   char * config_file_arg;	/**< @brief Alternate config file.  */
   char * config_file_orig;	/**< @brief Alternate config file original value given at command line.  */
   const char *config_file_help; /**< @brief Alternate config file help description.  */
+  char * map_server_arg;	/**< @brief MapServer.  */
+  char * map_server_orig;	/**< @brief MapServer original value given at command line.  */
+  const char *map_server_help; /**< @brief MapServer help description.  */
+  char * src_addr_arg;	/**< @brief Src Addr.  */
+  char * src_addr_orig;	/**< @brief Src Addr original value given at command line.  */
+  const char *src_addr_help; /**< @brief Src Addr help description.  */
+  char * dst_addr_arg;	/**< @brief Dst Addr.  */
+  char * dst_addr_orig;	/**< @brief Dst Addr original value given at command line.  */
+  const char *dst_addr_help; /**< @brief Dst Addr help description.  */
+  int src_port_arg;	/**< @brief Src Port.  */
+  char * src_port_orig;	/**< @brief Src Port original value given at command line.  */
+  const char *src_port_help; /**< @brief Src Port help description.  */
+  int dst_port_arg;	/**< @brief Dst Port.  */
+  char * dst_port_orig;	/**< @brief Dst Port original value given at command line.  */
+  const char *dst_port_help; /**< @brief Dst Port help description.  */
+  int protocol_arg;	/**< @brief Protocol.  */
+  char * protocol_orig;	/**< @brief Protocol original value given at command line.  */
+  const char *protocol_help; /**< @brief Protocol help description.  */
+  char * rloc_arg;	/**< @brief RLOC.  */
+  char * rloc_orig;	/**< @brief RLOC original value given at command line.  */
+  const char *rloc_help; /**< @brief RLOC help description.  */
+  int priority_arg;	/**< @brief Priority.  */
+  char * priority_orig;	/**< @brief Priority original value given at command line.  */
+  const char *priority_help; /**< @brief Priority help description.  */
+  int weight_arg;	/**< @brief Weight.  */
+  char * weight_orig;	/**< @brief Weight original value given at command line.  */
+  const char *weight_help; /**< @brief Weight help description.  */
+  int action_arg;	/**< @brief Action.  */
+  char * action_orig;	/**< @brief Action original value given at command line.  */
+  const char *action_help; /**< @brief Action help description.  */
   
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
@@ -59,6 +89,16 @@ struct gengetopt_args_info
   unsigned int afi_given ;	/**< @brief Whether afi was given.  */
   unsigned int daemonize_given ;	/**< @brief Whether daemonize was given.  */
   unsigned int config_file_given ;	/**< @brief Whether config-file was given.  */
+  unsigned int map_server_given ;	/**< @brief Whether map-server was given.  */
+  unsigned int src_addr_given ;	/**< @brief Whether src-addr was given.  */
+  unsigned int dst_addr_given ;	/**< @brief Whether dst-addr was given.  */
+  unsigned int src_port_given ;	/**< @brief Whether src-port was given.  */
+  unsigned int dst_port_given ;	/**< @brief Whether dst-port was given.  */
+  unsigned int protocol_given ;	/**< @brief Whether protocol was given.  */
+  unsigned int rloc_given ;	/**< @brief Whether rloc was given.  */
+  unsigned int priority_given ;	/**< @brief Whether priority was given.  */
+  unsigned int weight_given ;	/**< @brief Whether weight was given.  */
+  unsigned int action_given ;	/**< @brief Whether action was given.  */
 
   int lispdconfig_mode_counter; /**< @brief Counter for mode lispdconfig */
 } ;

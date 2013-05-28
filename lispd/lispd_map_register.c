@@ -42,6 +42,9 @@
 #include "lispd_pkt_lib.h"
 #include "lispd_sockets.h"
 #include "patricia/patricia.h"
+#include "lispd_afi.h"
+#include "lispd_local_db.h"
+#include "lispd_map_reply.h"
 
 
 
@@ -200,9 +203,10 @@ uint8_t *build_map_register_pkt(
     uint8_t                         *packet     = NULL;
     lispd_pkt_map_register_t        *mrp        = NULL;
     lispd_pkt_mapping_record_t      *mr         = NULL;
+    uint8_t action = 0;
 
     *mrp_len = sizeof(lispd_pkt_map_register_t) +
-              pkt_get_mapping_record_length(mapping);
+              pkt_get_mapping_record_length(mapping,TRUE);
 
     if ((packet = malloc(*mrp_len)) == NULL) {
         lispd_log_msg(LISP_LOG_WARNING, "build_map_register_pkt: Unable to allocate memory for Map Register packet: %s", strerror(errno));
@@ -236,13 +240,94 @@ uint8_t *build_map_register_pkt(
 
     mr = (lispd_pkt_mapping_record_t *) CO(mrp, sizeof(lispd_pkt_map_register_t));
 
-    if (pkt_fill_mapping_record(mr, mapping, NULL) != NULL) {
+#ifdef LISPFLOW_CTRLLER
+    action = mr_action;
+#endif
+    
+    if (pkt_fill_mapping_record(mr, mapping, NULL, action) != NULL) {
         return(packet);
     } else {
         free(packet);
         return(NULL);
     }
 }
+
+int process_map_register(uint8_t *packet)
+{
+    
+    lispd_pkt_map_register_t            *mrg;
+    lispd_pkt_mapping_record_t          *record;
+    //lispd_pkt_lcaf_iid_t                *lcaf_iid;
+
+    lisp_addr_t                         eid_prefix;           /* save the eid_prefix here */
+    int                                 eid_prefix_length   = 0;
+    int                                 record_count;
+    int                                 i;
+    lispd_mapping_elt                   *mapping                = NULL;
+    lispd_map_cache_entry               *existing_map_cache_entry            = NULL;
+    lispd_map_cache_entry               *map_cache_entry       = NULL;
+    uint8_t                             **cur_ptr              = NULL;
+    uint8_t                             *cur_ptr_aux              = NULL;
+    int                                 ctr;
+    
+    
+    mrg = (lispd_pkt_map_register_t *)packet;
+    record_count = mrg->record_count; 
+
+    cur_ptr = &cur_ptr_aux;
+    
+    record = (lispd_pkt_mapping_record_t *)CO(mrg, sizeof(lispd_pkt_map_register_t));
+    for (i=0; i < record_count; i++)
+    {
+        printf("Process Map Register: Processing Mapping Record\n");
+        map_cache_entry = new_map_cache_entry_no_db(eid_prefix,eid_prefix_length,DYNAMIC_MAP_CACHE_ENTRY,DEFAULT_DATA_CACHE_TTL);
+        
+        mapping = map_cache_entry->mapping;
+        
+//         mapping = new_map_cache_mapping(eid_prefix,eid_prefix_length,-1);
+//         if (mapping == NULL){
+//             return (BAD);
+//         }
+        printf("Process Map Register: Processing EID\n");
+        *cur_ptr = (uint8_t *)&(record->eid_prefix_afi);
+        if (!pkt_process_eid_afi(cur_ptr,mapping)){
+            lispd_log_msg(LISP_LOG_DEBUG_2,"process_map_register_record:  Error processing the EID of the map register record");
+            free_mapping_elt(mapping, FALSE);
+            return (BAD);
+        }
+        mapping->eid_prefix_length = record->eid_prefix_length;
+
+        map_cache_entry->actions = record->action;
+
+        printf("Process Map Register: Lookup Map Cache\n");
+        existing_map_cache_entry = lookup_map_cache_exact(mapping->eid_prefix,mapping->eid_prefix_length,get_tuple_from_mapping(mapping));
+        if (existing_map_cache_entry != NULL){
+            del_map_cache_entry_from_db(mapping->eid_prefix,mapping->eid_prefix_length,get_tuple_from_mapping(mapping));
+            //free(mapping_aux);
+        }
+
+        printf("Process Map Register: Adding locators\n");
+        /* Generate the locators */
+        for (ctr=0 ; ctr < record->locator_count ; ctr++){
+            if ((process_map_reply_locator (cur_ptr, mapping)) == BAD) /*XXX THIS CAN BE GENERALIZED (not only for map reply) */
+                return(BAD);
+        }
+
+        record = (lispd_pkt_mapping_record_t *)*cur_ptr;
+
+        /* Add the mapping to the local database */
+        if (add_map_cache_entry_to_db(map_cache_entry)!=GOOD){
+            return (BAD);
+        }
+        
+        
+    }
+
+    dump_map_cache_db(LISP_LOG_INFO);
+    
+    return(GOOD);
+}
+
 
 
 /*

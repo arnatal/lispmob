@@ -76,6 +76,12 @@ void reset_balancing_locators_vecs (balancing_locators_vecs *blv);
 
 /************************************ FUNCTIONS  **********************************/
 
+packet_tuple *get_tuple_from_mapping(lispd_mapping_elt *mapping){
+ 
+    return (&((rmt_mapping_extended_info *)mapping->extended_info)->tuple);
+    
+}
+
 /*
  * Generates a basic mapping
  */
@@ -158,6 +164,12 @@ lispd_mapping_elt *new_map_cache_mapping(
         return (NULL);
     }
     mapping->extended_info = (void *)extended_info;
+    
+    get_lisp_addr_from_char("0.0.0.0",&(extended_info->tuple.dst_addr));
+    get_lisp_addr_from_char("0.0.0.0",&(extended_info->tuple.src_addr));
+    extended_info->tuple.protocol = 0;
+    extended_info->tuple.src_port = 0;
+    extended_info->tuple.dst_port = 0;
 
     extended_info->rmt_balancing_locators_vecs.v4_balancing_locators_vec = NULL;
     extended_info->rmt_balancing_locators_vecs.v6_balancing_locators_vec = NULL;

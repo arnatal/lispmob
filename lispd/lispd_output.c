@@ -427,9 +427,7 @@ lisp_addr_t extract_src_addr_from_packet ( char *packet )
     return (addr);
 }
 
-int handle_map_cache_miss(
-        lisp_addr_t *requested_eid,
-        lisp_addr_t *src_eid)
+int handle_map_cache_miss(packet_tuple *tuple)
 {
 
     lispd_map_cache_entry       *entry          = NULL;
@@ -441,16 +439,16 @@ int handle_map_cache_miss(
         return (ERR_MALLOC);
     }
 
-
-    //arnatal TODO: check if this works
     entry = new_map_cache_entry(
-            *requested_eid,
-            get_prefix_len(requested_eid->afi),
+            tuple->dst_addr,
+            get_prefix_len(tuple->dst_addr.afi),
             DYNAMIC_MAP_CACHE_ENTRY,
             DEFAULT_DATA_CACHE_TTL);
 
+    ((rmt_mapping_extended_info *)entry->mapping->extended_info)->tuple = *tuple;
+    
     arguments->map_cache_entry = entry;
-    arguments->src_eid = *src_eid;
+    arguments->src_eid = tuple->src_addr;
 
     if ((err=send_map_request_miss(NULL, (void *)arguments))!=GOOD)
         return (BAD);
@@ -683,12 +681,16 @@ int lisp_output (
         return (forward_native(original_packet,original_packet_length));
     }
 
+#ifdef LISPFLOW_CLIENT
+    entry = lookup_map_cache_exact_with_wildcards(tuple.dst_addr,32,&tuple);
+#else
     entry = lookup_map_cache(tuple.dst_addr);
+#endif
 
     //arnatal XXX: is this the correct error type?
     if (entry == NULL){ /* There is no entry in the map cache */
         lispd_log_msg(LISP_LOG_DEBUG_1, "No map cache retrieved for eid %s",get_char_from_lisp_addr_t(tuple.dst_addr));
-        handle_map_cache_miss(&(tuple.dst_addr), &(tuple.src_addr));
+        handle_map_cache_miss(&tuple);
     }
     /* Packets with negative map cache entry, no active map cache entry or no map cache entry are forwarded to PETR */
     if ((entry == NULL) || (entry->active == NO_ACTIVE) || (entry->mapping->locator_count == 0) ){ /* There is no entry or is not active*/
@@ -704,6 +706,13 @@ int lisp_output (
         }
         return (GOOD);
     }
+
+#ifdef LISPFLOW_CLIENT    
+    if ((entry->actions) == ACT_DROP){
+        lispd_log_msg(LISP_LOG_INFO, "ACT = DROP | Dropping packet addressed to %s",get_char_from_lisp_addr_t(tuple.dst_addr));
+        return (GOOD); // Quick way to "drop" the packet
+    }
+#endif
 
     dst_mapping = entry->mapping;
 

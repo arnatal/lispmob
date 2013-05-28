@@ -214,6 +214,10 @@ int build_and_send_map_request_msg(
  */
 int process_map_request_msg(uint8_t *packet, lisp_addr_t *local_rloc, uint16_t remote_port);
 
+int ms_mode_process_map_request_msg(
+         uint8_t        *packet,
+         lisp_addr_t    *local_rloc,
+         uint16_t       dst_port);
 
 /*
  *  process Map_Request Message

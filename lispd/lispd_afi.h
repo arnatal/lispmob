@@ -62,6 +62,7 @@
 #define LCAF_MCAST_INFO     9
 #define LCAF_EXPL_LOC_PATH  10
 #define LCAF_SEC_KEY        11
+#define LCAF_5_TUPLE        13
 
 
 #define MAX_IID 16777215
@@ -115,6 +116,38 @@ typedef struct lispd_pkt_lcaf_iid_t_ {
     uint16_t    afi;
 } PACKED lispd_pkt_lcaf_iid_t;
 
+
+/*
+ * 5 tuple
+ *
+ *         0                   1                   2                   3
+ *         0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ *        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *        |           AFI = 16387         |    Rsvd1      |    Flags      |
+ *        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *        |   Type = 2    | IID mask-len  |             4 + n             |
+    *     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+          |           Source-port         |         Src-port-range        |
+          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+          |            Dest-port          |         Dst-port-range        |
+          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+          |             Protocol          |   Source-ML   |    Dest-ML    |
+          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+          |              AFI = x          |         Source-Prefix ...     |
+          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+          |              AFI = x          |     Destination-Prefix ...    |
+          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+*/
+
+typedef struct lispd_pkt_lcaf_5tuple_t_ {
+    uint16_t    src_port;
+    uint16_t    src_port_range;
+    uint16_t    dst_port;
+    uint16_t    dst_port_range;
+    uint16_t    protocol;
+    uint8_t     src_ml;
+    uint8_t     dst_ml;
+} PACKED lispd_pkt_lcaf_5tuple_t;
 
 
 

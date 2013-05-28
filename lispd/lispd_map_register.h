@@ -127,4 +127,6 @@ int map_register(timer *t, void *arg);
 
 int build_and_send_map_register_msg(lispd_mapping_elt *mapping);
 
+int process_map_register(uint8_t *packet);
+
 #endif /*LISPD_MAP_REGISTER_H_*/

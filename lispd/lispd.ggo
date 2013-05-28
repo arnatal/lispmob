@@ -27,6 +27,36 @@ modeoption "daemonize" D "Daemonize lispd" mode="lispdconfig" optional
 modeoption "config-file" f "Alternate config file" 
 	    string typestr="config-file" mode="lispdconfig" optional
 
+modeoption "map-server" m "MapServer"
+            string typestr="map-server" mode="lispdconfig" optional
+
+modeoption "src-addr" s "Src Addr"
+            string typestr="src-addr" mode="lispdconfig" optional
+
+modeoption "dst-addr" e "Dst Addr"
+            string typestr="dst-addr" mode="lispdconfig" optional
+
+modeoption "src-port" i "Src Port"
+            int typestr="src-port" mode="lispdconfig" optional
+
+modeoption "dst-port" o "Dst Port"
+            int typestr="dst-port" mode="lispdconfig" optional
+
+modeoption "protocol" p "Protocol"
+            int typestr="protocol" mode="lispdconfig" optional
+
+modeoption "rloc" r "RLOC"
+            string typestr="rloc" mode="lispdconfig" optional
+
+modeoption "priority" t "Priority"
+            int typestr="priority" mode="lispdconfig" optional
+
+modeoption "weight" w "Weight"
+            int typestr="weight" mode="lispdconfig" optional
+
+modeoption "action" c "Action"
+            int typestr="action" mode="lispdconfig" optional
+
 # modeoption "inner-source-port" r "P is the inner source port for EMRs" 
 # 	    string typestr="P" mode="lispdconfig" optional
 # 

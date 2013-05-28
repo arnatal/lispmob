@@ -136,6 +136,52 @@ void handle_lispd_command_line(
     }else{
         default_rloc_afi = -1;
     }
+    
+#ifdef LISPFLOW_CTRLLER
+    
+    if (args_info.map_server_given) {
+        get_lisp_addr_from_char(args_info.map_server_arg,&map_server);
+    }
+
+    if (args_info.src_addr_given) {
+        get_lisp_addr_from_char(args_info.src_addr_arg,&tuple.src_addr);
+    }
+
+    if (args_info.dst_addr_given) {
+        get_lisp_addr_from_char(args_info.dst_addr_arg,&tuple.dst_addr);
+    }
+
+    if (args_info.src_port_given) {
+        tuple.src_port = args_info.src_port_arg;
+    }
+
+    if (args_info.dst_port_given) {
+        tuple.dst_port = args_info.dst_port_arg;
+    }
+
+    if (args_info.protocol_given) {
+        tuple.protocol = args_info.protocol_arg;
+    }
+
+    if (args_info.rloc_given) {
+        get_lisp_addr_from_char(args_info.rloc_arg,&rloc);
+    }
+
+    if (args_info.priority_given) {
+        priority = args_info.priority_arg;
+    }
+
+    if (args_info.weight_given) {
+        weight = args_info.weight_arg;
+    }
+
+    if (args_info.action_given) {
+        mr_action = args_info.action_arg;
+    }
+    
+
+#endif
+    
 }
 
 
@@ -821,48 +867,48 @@ int add_static_map_cache_entry(
         int    priority,
         int    weight)
 {
-    lispd_map_cache_entry    *map_cache_entry;
-    lispd_locator_elt        *locator;
-    lisp_addr_t              eid_prefix;
-    int                      eid_prefix_length;
-
-
-    if (iid > MAX_IID) {
-        lispd_log_msg(LISP_LOG_ERR, "Configuration file: Instance ID %d out of range [0..%d], disabling...", iid, MAX_IID);
-        iid = 0;
-    }
-
-    if (iid < 0)
-        iid = 0;
-
-    if (priority < MAX_PRIORITY || priority > UNUSED_RLOC_PRIORITY) {
-        lispd_log_msg(LISP_LOG_ERR, "Configuration file: Priority %d out of range [%d..%d], set minimum priority...",
-                priority, MAX_PRIORITY, UNUSED_RLOC_PRIORITY);
-        priority = MIN_PRIORITY;
-    }
-
-    if (get_lisp_addr_and_mask_from_char(eid,&eid_prefix,&eid_prefix_length)!=GOOD){
-        lispd_log_msg(LISP_LOG_ERR, "Configuration file: Error parsing RLOC address ...Ignoring static map cache entry");
-        return (BAD);
-    }
-
-    map_cache_entry = new_map_cache_entry(eid_prefix, eid_prefix_length, STATIC_MAP_CACHE_ENTRY,255);
-    if (map_cache_entry == NULL)
-        return (BAD);
-
-
-    map_cache_entry->mapping->iid = iid;
-
-    locator = new_static_rmt_locator(rloc_addr,UP,priority,weight,255,0);
-
-    if (locator != NULL){
-        if ((err=add_locator_to_mapping (map_cache_entry->mapping, locator)) != GOOD){
-            return (BAD);
-        }
-    }else{
-        return (BAD);
-    }
-    return (GOOD);
+//     lispd_map_cache_entry    *map_cache_entry;
+//     lispd_locator_elt        *locator;
+//     lisp_addr_t              eid_prefix;
+//     int                      eid_prefix_length;
+// 
+// 
+//     if (iid > MAX_IID) {
+//         lispd_log_msg(LISP_LOG_ERR, "Configuration file: Instance ID %d out of range [0..%d], disabling...", iid, MAX_IID);
+//         iid = 0;
+//     }
+// 
+//     if (iid < 0)
+//         iid = 0;
+// 
+//     if (priority < MAX_PRIORITY || priority > UNUSED_RLOC_PRIORITY) {
+//         lispd_log_msg(LISP_LOG_ERR, "Configuration file: Priority %d out of range [%d..%d], set minimum priority...",
+//                 priority, MAX_PRIORITY, UNUSED_RLOC_PRIORITY);
+//         priority = MIN_PRIORITY;
+//     }
+// 
+//     if (get_lisp_addr_and_mask_from_char(eid,&eid_prefix,&eid_prefix_length)!=GOOD){
+//         lispd_log_msg(LISP_LOG_ERR, "Configuration file: Error parsing RLOC address ...Ignoring static map cache entry");
+//         return (BAD);
+//     }
+// 
+//     map_cache_entry = new_map_cache_entry(eid_prefix, eid_prefix_length, STATIC_MAP_CACHE_ENTRY,255);
+//     if (map_cache_entry == NULL)
+//         return (BAD);
+// 
+// 
+//     map_cache_entry->mapping->iid = iid;
+// 
+//     locator = new_static_rmt_locator(rloc_addr,UP,priority,weight,255,0);
+// 
+//     if (locator != NULL){
+//         if ((err=add_locator_to_mapping (map_cache_entry->mapping, locator)) != GOOD){
+//             return (BAD);
+//         }
+//     }else{
+//         return (BAD);
+//     }
+      return (GOOD);
 }
 
 /*
@@ -1040,6 +1086,7 @@ int add_proxy_etr_entry(
         if ((get_lisp_addr_from_char ("0.0.0.0", &aux_address))!=GOOD){
             return (BAD);
         }
+
         proxy_etrs = new_map_cache_entry_no_db (aux_address,0,STATIC_MAP_CACHE_ENTRY,0);
         if (proxy_etrs == NULL){
             return (BAD);

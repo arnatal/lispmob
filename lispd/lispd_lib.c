@@ -63,6 +63,7 @@
 #include "lispd_map_notify.h"
 #include "lispd_sockets.h"
 #include "patricia/patricia.h"
+#include "lispd_map_register.h"
 
 
 
@@ -602,6 +603,66 @@ int compare_lisp_addr_t (
 		return (2);
 }
 
+int is_same_tuple(packet_tuple *tuple1, packet_tuple *tuple2){
+
+    if (compare_lisp_addr_t(&(tuple1->dst_addr),&(tuple2->dst_addr)) != 0){
+        return (FALSE);
+    }
+    
+    if (compare_lisp_addr_t(&(tuple1->src_addr),&(tuple2->src_addr)) != 0){
+        return (FALSE);
+    }
+
+    if (tuple1->protocol != tuple2->protocol){
+        return (FALSE);
+    }
+
+
+    if (tuple1->dst_port != tuple2->dst_port){
+        return (FALSE);
+    }
+
+    if (tuple1->src_port != tuple2->src_port){
+        return (FALSE);
+    }
+
+
+    return (TRUE);
+}
+
+
+int is_same_tuple_with_wildcards(packet_tuple *tuple1, packet_tuple *tuple2){
+    
+    if (compare_lisp_addr_t(&(tuple1->dst_addr),&(tuple2->dst_addr)) != 0){
+        return (FALSE);
+    }
+    
+    if (compare_lisp_addr_t(&(tuple1->src_addr),&(tuple2->src_addr)) != 0){
+        return (FALSE);
+    }
+    
+    if (tuple1->protocol != tuple2->protocol){
+        return (FALSE);
+    }
+
+    printf("tuple1 dst_port:%d | tuple2 dst_port: %d\n",tuple1->dst_port,tuple2->dst_port);
+    
+    if ((tuple2->dst_port!=0)&&
+        (tuple1->dst_port != tuple2->dst_port)){
+        return (FALSE);
+    }
+
+    printf("tuple1 src_port:%d | tuple2 src_port: %d\n",tuple1->src_port,tuple2->src_port);
+    if ((tuple2->src_port!=0)&&
+        (tuple1->src_port != tuple2->src_port)){
+        return (FALSE);
+    }
+
+    printf("Tuple passed the check!\n");
+    return (TRUE);
+}
+
+
 /*
  * Parse address and fill lisp_addr and mask.
  * Return GOOD if no error has been found
@@ -880,15 +941,39 @@ int process_lisp_ctr_msg(
         break;
     case LISP_ENCAP_CONTROL_TYPE:   //Got Encapsulated Control Message
         lispd_log_msg(LISP_LOG_DEBUG_1, "Received a LISP Encapsulated Map-Request message");
+#ifdef LISPFLOW_MS
+        if(!ms_mode_process_map_request_msg(packet, &local_rloc, remote_port)){
+            return (BAD);
+        }
+#else      
         if(!process_map_request_msg(packet, &local_rloc, remote_port))
             return (BAD);
+#endif
         break;
     case LISP_MAP_REQUEST:      //Got Map-Request
         lispd_log_msg(LISP_LOG_DEBUG_1, "Received a LISP Map-Request message");
+        
+#ifdef LISPFLOW_MS
+        if(!ms_mode_process_map_request_msg(packet, &local_rloc, remote_port)){
+            return (BAD);
+        }
+#else        
         if(!process_map_request_msg(packet, &local_rloc, remote_port))
             return (BAD);
+#endif
+        
+        
         break;
-    case LISP_MAP_REGISTER:     //Got Map-Register, silently ignore
+    case LISP_MAP_REGISTER:     //Got Map-Register
+        lispd_log_msg(LISP_LOG_DEBUG_1, "Received a LISP Map-Register message");
+
+#ifdef LISPFLOW_MS
+        if(process_map_register(packet) != GOOD){
+            return (BAD); 
+        }
+        printf("Processed MapRegister\n");
+        dump_local_db(LISP_LOG_INFO);
+#endif
         break;
     case LISP_MAP_NOTIFY:
         lispd_log_msg(LISP_LOG_DEBUG_1, "Received a LISP Map-Notify message");

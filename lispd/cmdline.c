@@ -39,11 +39,22 @@ const char *gengetopt_args_info_help[] = {
   "  -a, --afi=ENUM                Default RLOCs afi [4,6]  (possible \n                                  values=\"4\", \"6\")",
   "  -D, --daemonize               Daemonize lispd",
   "  -f, --config-file=config-file Alternate config file",
+  "  -m, --map-server=map-server   MapServer",
+  "  -s, --src-addr=src-addr       Src Addr",
+  "  -e, --dst-addr=dst-addr       Dst Addr",
+  "  -i, --src-port=src-port       Src Port",
+  "  -o, --dst-port=dst-port       Dst Port",
+  "  -p, --protocol=protocol       Protocol",
+  "  -r, --rloc=rloc               RLOC",
+  "  -t, --priority=priority       Priority",
+  "  -w, --weight=weight           Weight",
+  "  -c, --action=action           Action",
     0
 };
 
 typedef enum {ARG_NO
   , ARG_STRING
+  , ARG_INT
   , ARG_ENUM
 } cmdline_parser_arg_type;
 
@@ -72,6 +83,16 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->afi_given = 0 ;
   args_info->daemonize_given = 0 ;
   args_info->config_file_given = 0 ;
+  args_info->map_server_given = 0 ;
+  args_info->src_addr_given = 0 ;
+  args_info->dst_addr_given = 0 ;
+  args_info->src_port_given = 0 ;
+  args_info->dst_port_given = 0 ;
+  args_info->protocol_given = 0 ;
+  args_info->rloc_given = 0 ;
+  args_info->priority_given = 0 ;
+  args_info->weight_given = 0 ;
+  args_info->action_given = 0 ;
   args_info->lispdconfig_mode_counter = 0 ;
 }
 
@@ -85,6 +106,20 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->afi_orig = NULL;
   args_info->config_file_arg = NULL;
   args_info->config_file_orig = NULL;
+  args_info->map_server_arg = NULL;
+  args_info->map_server_orig = NULL;
+  args_info->src_addr_arg = NULL;
+  args_info->src_addr_orig = NULL;
+  args_info->dst_addr_arg = NULL;
+  args_info->dst_addr_orig = NULL;
+  args_info->src_port_orig = NULL;
+  args_info->dst_port_orig = NULL;
+  args_info->protocol_orig = NULL;
+  args_info->rloc_arg = NULL;
+  args_info->rloc_orig = NULL;
+  args_info->priority_orig = NULL;
+  args_info->weight_orig = NULL;
+  args_info->action_orig = NULL;
   
 }
 
@@ -99,6 +134,16 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->afi_help = gengetopt_args_info_help[4] ;
   args_info->daemonize_help = gengetopt_args_info_help[5] ;
   args_info->config_file_help = gengetopt_args_info_help[6] ;
+  args_info->map_server_help = gengetopt_args_info_help[7] ;
+  args_info->src_addr_help = gengetopt_args_info_help[8] ;
+  args_info->dst_addr_help = gengetopt_args_info_help[9] ;
+  args_info->src_port_help = gengetopt_args_info_help[10] ;
+  args_info->dst_port_help = gengetopt_args_info_help[11] ;
+  args_info->protocol_help = gengetopt_args_info_help[12] ;
+  args_info->rloc_help = gengetopt_args_info_help[13] ;
+  args_info->priority_help = gengetopt_args_info_help[14] ;
+  args_info->weight_help = gengetopt_args_info_help[15] ;
+  args_info->action_help = gengetopt_args_info_help[16] ;
   
 }
 
@@ -183,6 +228,20 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->afi_orig));
   free_string_field (&(args_info->config_file_arg));
   free_string_field (&(args_info->config_file_orig));
+  free_string_field (&(args_info->map_server_arg));
+  free_string_field (&(args_info->map_server_orig));
+  free_string_field (&(args_info->src_addr_arg));
+  free_string_field (&(args_info->src_addr_orig));
+  free_string_field (&(args_info->dst_addr_arg));
+  free_string_field (&(args_info->dst_addr_orig));
+  free_string_field (&(args_info->src_port_orig));
+  free_string_field (&(args_info->dst_port_orig));
+  free_string_field (&(args_info->protocol_orig));
+  free_string_field (&(args_info->rloc_arg));
+  free_string_field (&(args_info->rloc_orig));
+  free_string_field (&(args_info->priority_orig));
+  free_string_field (&(args_info->weight_orig));
+  free_string_field (&(args_info->action_orig));
   
   
 
@@ -266,6 +325,26 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "daemonize", 0, 0 );
   if (args_info->config_file_given)
     write_into_file(outfile, "config-file", args_info->config_file_orig, 0);
+  if (args_info->map_server_given)
+    write_into_file(outfile, "map-server", args_info->map_server_orig, 0);
+  if (args_info->src_addr_given)
+    write_into_file(outfile, "src-addr", args_info->src_addr_orig, 0);
+  if (args_info->dst_addr_given)
+    write_into_file(outfile, "dst-addr", args_info->dst_addr_orig, 0);
+  if (args_info->src_port_given)
+    write_into_file(outfile, "src-port", args_info->src_port_orig, 0);
+  if (args_info->dst_port_given)
+    write_into_file(outfile, "dst-port", args_info->dst_port_orig, 0);
+  if (args_info->protocol_given)
+    write_into_file(outfile, "protocol", args_info->protocol_orig, 0);
+  if (args_info->rloc_given)
+    write_into_file(outfile, "rloc", args_info->rloc_orig, 0);
+  if (args_info->priority_given)
+    write_into_file(outfile, "priority", args_info->priority_orig, 0);
+  if (args_info->weight_given)
+    write_into_file(outfile, "weight", args_info->weight_orig, 0);
+  if (args_info->action_given)
+    write_into_file(outfile, "action", args_info->action_orig, 0);
   
 
   i = EXIT_SUCCESS;
@@ -443,6 +522,9 @@ int update_arg(void *field, char **orig_field,
     val = possible_values[found];
 
   switch(arg_type) {
+  case ARG_INT:
+    if (val) *((int *)field) = strtol (val, &stop_char, 0);
+    break;
   case ARG_ENUM:
     if (val) *((int *)field) = found;
     break;
@@ -458,6 +540,17 @@ int update_arg(void *field, char **orig_field,
     break;
   };
 
+  /* check numeric conversion */
+  switch(arg_type) {
+  case ARG_INT:
+    if (val && !(stop_char && *stop_char == '\0')) {
+      fprintf(stderr, "%s: invalid numeric value: %s\n", package_name, val);
+      return 1; /* failure */
+    }
+    break;
+  default:
+    ;
+  };
 
   /* store the original value */
   switch(arg_type) {
@@ -545,10 +638,20 @@ cmdline_parser_internal (
         { "afi",	1, NULL, 'a' },
         { "daemonize",	0, NULL, 'D' },
         { "config-file",	1, NULL, 'f' },
+        { "map-server",	1, NULL, 'm' },
+        { "src-addr",	1, NULL, 's' },
+        { "dst-addr",	1, NULL, 'e' },
+        { "src-port",	1, NULL, 'i' },
+        { "dst-port",	1, NULL, 'o' },
+        { "protocol",	1, NULL, 'p' },
+        { "rloc",	1, NULL, 'r' },
+        { "priority",	1, NULL, 't' },
+        { "weight",	1, NULL, 'w' },
+        { "action",	1, NULL, 'c' },
         { 0,  0, 0, 0 }
       };
 
-      c = getopt_long (argc, argv, "hVd:a:Df:", long_options, &option_index);
+      c = getopt_long (argc, argv, "hVd:a:Df:m:s:e:i:o:p:r:t:w:c:", long_options, &option_index);
 
       if (c == -1) break;	/* Exit from `while (1)' loop.  */
 
@@ -612,6 +715,136 @@ cmdline_parser_internal (
               &(local_args_info.config_file_given), optarg, 0, 0, ARG_STRING,
               check_ambiguity, override, 0, 0,
               "config-file", 'f',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 'm':	/* MapServer.  */
+          args_info->lispdconfig_mode_counter += 1;
+        
+        
+          if (update_arg( (void *)&(args_info->map_server_arg), 
+               &(args_info->map_server_orig), &(args_info->map_server_given),
+              &(local_args_info.map_server_given), optarg, 0, 0, ARG_STRING,
+              check_ambiguity, override, 0, 0,
+              "map-server", 'm',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 's':	/* Src Addr.  */
+          args_info->lispdconfig_mode_counter += 1;
+        
+        
+          if (update_arg( (void *)&(args_info->src_addr_arg), 
+               &(args_info->src_addr_orig), &(args_info->src_addr_given),
+              &(local_args_info.src_addr_given), optarg, 0, 0, ARG_STRING,
+              check_ambiguity, override, 0, 0,
+              "src-addr", 's',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 'e':	/* Dst Addr.  */
+          args_info->lispdconfig_mode_counter += 1;
+        
+        
+          if (update_arg( (void *)&(args_info->dst_addr_arg), 
+               &(args_info->dst_addr_orig), &(args_info->dst_addr_given),
+              &(local_args_info.dst_addr_given), optarg, 0, 0, ARG_STRING,
+              check_ambiguity, override, 0, 0,
+              "dst-addr", 'e',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 'i':	/* Src Port.  */
+          args_info->lispdconfig_mode_counter += 1;
+        
+        
+          if (update_arg( (void *)&(args_info->src_port_arg), 
+               &(args_info->src_port_orig), &(args_info->src_port_given),
+              &(local_args_info.src_port_given), optarg, 0, 0, ARG_INT,
+              check_ambiguity, override, 0, 0,
+              "src-port", 'i',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 'o':	/* Dst Port.  */
+          args_info->lispdconfig_mode_counter += 1;
+        
+        
+          if (update_arg( (void *)&(args_info->dst_port_arg), 
+               &(args_info->dst_port_orig), &(args_info->dst_port_given),
+              &(local_args_info.dst_port_given), optarg, 0, 0, ARG_INT,
+              check_ambiguity, override, 0, 0,
+              "dst-port", 'o',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 'p':	/* Protocol.  */
+          args_info->lispdconfig_mode_counter += 1;
+        
+        
+          if (update_arg( (void *)&(args_info->protocol_arg), 
+               &(args_info->protocol_orig), &(args_info->protocol_given),
+              &(local_args_info.protocol_given), optarg, 0, 0, ARG_INT,
+              check_ambiguity, override, 0, 0,
+              "protocol", 'p',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 'r':	/* RLOC.  */
+          args_info->lispdconfig_mode_counter += 1;
+        
+        
+          if (update_arg( (void *)&(args_info->rloc_arg), 
+               &(args_info->rloc_orig), &(args_info->rloc_given),
+              &(local_args_info.rloc_given), optarg, 0, 0, ARG_STRING,
+              check_ambiguity, override, 0, 0,
+              "rloc", 'r',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 't':	/* Priority.  */
+          args_info->lispdconfig_mode_counter += 1;
+        
+        
+          if (update_arg( (void *)&(args_info->priority_arg), 
+               &(args_info->priority_orig), &(args_info->priority_given),
+              &(local_args_info.priority_given), optarg, 0, 0, ARG_INT,
+              check_ambiguity, override, 0, 0,
+              "priority", 't',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 'w':	/* Weight.  */
+          args_info->lispdconfig_mode_counter += 1;
+        
+        
+          if (update_arg( (void *)&(args_info->weight_arg), 
+               &(args_info->weight_orig), &(args_info->weight_given),
+              &(local_args_info.weight_given), optarg, 0, 0, ARG_INT,
+              check_ambiguity, override, 0, 0,
+              "weight", 'w',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 'c':	/* Action.  */
+          args_info->lispdconfig_mode_counter += 1;
+        
+        
+          if (update_arg( (void *)&(args_info->action_arg), 
+               &(args_info->action_orig), &(args_info->action_given),
+              &(local_args_info.action_given), optarg, 0, 0, ARG_INT,
+              check_ambiguity, override, 0, 0,
+              "action", 'c',
               additional_error))
             goto failure;
         

@@ -105,6 +105,7 @@ typedef struct {
     uint8_t send_rec;       // send a Map Reply record as well
     uint8_t rloc_probe;     // set RLOC probe bit
     uint8_t echo_nonce;     // set Echo-nonce bit
+    uint8_t action;
 } map_reply_opts;
 
 
@@ -119,5 +120,7 @@ int build_and_send_map_reply_msg(
         uint16_t dport,
         uint64_t nonce,
         map_reply_opts opts);
+
+int process_map_reply_locator(uint8_t  **offset, lispd_mapping_elt *mapping);
 
 #endif /*LISPD_MAP_REPLY_H_*/

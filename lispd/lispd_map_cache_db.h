@@ -58,7 +58,7 @@ int add_map_cache_entry_to_db(lispd_map_cache_entry *entry);
  *
  * Delete an EID mapping from the cache
  */
-void del_map_cache_entry_from_db(lisp_addr_t eid, int prefixlen);
+void del_map_cache_entry_from_db(lisp_addr_t eid, int prefixlen,packet_tuple *tuple);
 
 
 /*
@@ -68,8 +68,13 @@ void del_map_cache_entry_from_db(lisp_addr_t eid, int prefixlen);
  */
 lispd_map_cache_entry *lookup_map_cache_exact(
         lisp_addr_t             eid,
-        int                     prefixlen);
+        int                     prefixlen,
+        packet_tuple            *tuple);
 
+lispd_map_cache_entry *lookup_map_cache_exact_with_wildcards(
+    lisp_addr_t             eid,
+    int                     prefixlen,
+    packet_tuple            *tuple);
 
 /*
  * lookup_map_cache()

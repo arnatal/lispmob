@@ -82,11 +82,14 @@ typedef struct lcl_mapping_extended_info_ {
  * Structure to expand the lispd_mapping_elt used in lispd_map_cache_entry
  */
 typedef struct rmt_mapping_extended_info_ {
+    packet_tuple                          tuple;
     balancing_locators_vecs               rmt_balancing_locators_vecs;
 }rmt_mapping_extended_info;
 
 
 /****************************************  FUNCTIONS **************************************/
+
+packet_tuple *get_tuple_from_mapping(lispd_mapping_elt *mapping);
 
 /*
  * Generates a mapping with the local extended info

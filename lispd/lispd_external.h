@@ -66,6 +66,19 @@ extern lispd_iface_elt          *default_out_iface_v4;
 extern lispd_iface_elt          *default_out_iface_v6;
 extern timer                    *smr_timer;
 
+#ifdef LISPFLOW_CTRLLER
+
+extern lisp_addr_t   map_server;
+extern packet_tuple tuple;
+
+extern int priority;
+extern int weight;
+extern lisp_addr_t rloc;
+
+extern int mr_action;
+
+#endif
+
 #endif /*LISPD_EXTERNAL_H_*/
 
 /*

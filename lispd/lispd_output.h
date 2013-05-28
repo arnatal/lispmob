@@ -51,7 +51,7 @@ lisp_addr_t extract_dst_addr_from_packet ( char *packet );
 
 lisp_addr_t extract_src_addr_from_packet ( char *packet );
 
-int handle_map_cache_miss(lisp_addr_t *requested_eid, lisp_addr_t *src_eid);
+int handle_map_cache_miss(packet_tuple *tuple);
 
 lisp_addr_t *get_proxy_etr(int afi);
 

@@ -35,7 +35,11 @@
 #include "lispd_map_cache_db.h"
 
 
-
+// packet_tuple *get_tuple_from_map_cache_entry(lispd_map_cache_entry *entry){
+//  
+//     return (&((rmt_mapping_extended_info *)entry->mapping->extended_info)->tuple);
+//     
+// }
 
 lispd_map_cache_entry *new_map_cache_entry_no_db (
         lisp_addr_t     eid_prefix,
@@ -56,7 +60,7 @@ lispd_map_cache_entry *new_map_cache_entry_no_db (
     if (map_cache_entry->mapping == NULL){
         return(NULL);
     }
-
+    
     map_cache_entry->active_witin_period = FALSE;
     map_cache_entry->probe_left = 0;
     map_cache_entry->how_learned = how_learned;
@@ -147,9 +151,9 @@ void dump_map_cache_entry (lispd_map_cache_entry *entry, int log_level)
         return;
     }
 
-
     sprintf(str,"IDENTIFIER (EID): %s/%d (IID = %d), ", get_char_from_lisp_addr_t(entry->mapping->eid_prefix),
             entry->mapping->eid_prefix_length, entry->mapping->iid);
+    
     uptime = time(NULL);
     uptime = uptime - entry->timestamp;
     strftime(buf, 20, "%H:%M:%S", localtime(&uptime));
@@ -166,6 +170,20 @@ void dump_map_cache_entry (lispd_map_cache_entry *entry, int log_level)
     sprintf(str + strlen(str),"   ACTIVE: %s\n", entry->active == TRUE ? "Yes" : "No");
     lispd_log_msg(log_level,"%s",str);
 
+    lispd_log_msg(log_level,"TUPLE = Src addr %s, Dst addr %s",
+                  get_char_from_lisp_addr_t(get_tuple_from_mapping(entry->mapping)->src_addr),
+                  get_char_from_lisp_addr_t(get_tuple_from_mapping(entry->mapping)->dst_addr)
+    );
+    
+    lispd_log_msg(log_level,"TUPLE = Src port %d, Dst port %d, Proto %d",
+                  get_tuple_from_mapping(entry->mapping)->src_port,
+                  get_tuple_from_mapping(entry->mapping)->dst_port,
+                  get_tuple_from_mapping(entry->mapping)->protocol
+    );
+    
+    lispd_log_msg(log_level,"ACTION = %d",entry->actions);
+    
+    
     if (entry->mapping->locator_count > 0){
 
         locator_iterator_array[0] = entry->mapping->head_v4_locators_list;

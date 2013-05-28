@@ -68,6 +68,64 @@ patricia_tree_t* get_map_cache_db(int afi)
         return (AF6_map_cache);
 }
 
+lispd_map_cache_entry *get_map_cache_entry_by_tuple(lispd_map_cache_entry *head, packet_tuple *tuple){
+
+    lispd_map_cache_entry *entry = NULL;
+    lispd_map_cache_entry *entry_itr = NULL;
+    
+    entry_itr = head;
+    
+    do {
+       if (is_same_tuple(tuple, get_tuple_from_mapping(entry_itr->mapping))){
+            entry = entry_itr;
+            entry_itr = NULL;
+       }else{
+           entry_itr = entry_itr->next;
+       }
+    }while (entry_itr != NULL);
+    
+    return entry;
+}
+
+lispd_map_cache_entry *get_map_cache_entry_by_tuple_with_wildcards(lispd_map_cache_entry *head, packet_tuple *tuple){
+    
+    lispd_map_cache_entry *entry = NULL;
+    lispd_map_cache_entry *entry_itr = NULL;
+    
+    entry_itr = head;
+    
+    do {
+        if (is_same_tuple_with_wildcards(tuple, get_tuple_from_mapping(entry_itr->mapping))){
+            entry = entry_itr;
+            entry_itr = NULL;
+        }else{
+            entry_itr = entry_itr->next;
+        }
+    }while (entry_itr != NULL);
+    
+    return entry;
+}
+
+int add_bytuple_another_map_cache_entry(lispd_map_cache_entry *head, lispd_map_cache_entry *entry){
+    
+    lispd_map_cache_entry *entry_itr = NULL;
+    
+    if(get_map_cache_entry_by_tuple(head,get_tuple_from_mapping(entry->mapping)) != NULL){
+        return (BAD);
+    }
+    
+    entry_itr = head; 
+    
+    while(entry_itr->next != NULL){
+        entry_itr = entry_itr->next;
+    }
+    
+    entry_itr->next = entry;
+    
+    return (GOOD);
+    
+}
+
 /*
  *  Add a map cache entry to the database.
  */
@@ -112,9 +170,15 @@ int add_map_cache_entry_to_db(lispd_map_cache_entry *entry)
     Deref_Prefix(prefix);
     if (node->data != NULL){            /* The node already exists */
         entry2 = (lispd_map_cache_entry *)node->data;
-        lispd_log_msg(LISP_LOG_DEBUG_2, "add_map_cache_entry: Map cache entry (%s/%d) already installed in the data base",
+        if(add_bytuple_another_map_cache_entry(entry2,entry)!=GOOD){
+            lispd_log_msg(LISP_LOG_DEBUG_2, "Map cache entry (%s/%d) already installed in the data base with same tuple",
                 get_char_from_lisp_addr_t(entry2->mapping->eid_prefix),entry2->mapping->eid_prefix_length);
-        return (BAD);
+        
+            return (BAD);
+        }
+        lispd_log_msg(LISP_LOG_DEBUG_2, "Map cache entry (%s/%d) installed in the data base with new tuple",
+                get_char_from_lisp_addr_t(entry2->mapping->eid_prefix),entry2->mapping->eid_prefix_length);
+        return (GOOD);
     }
     node->data = (lispd_map_cache_entry *) entry;
     lispd_log_msg(LISP_LOG_DEBUG_2, "Added map cache entry for EID: %s/%d",
@@ -223,8 +287,10 @@ lispd_map_cache_entry *lookup_map_cache(lisp_addr_t eid)
 
 lispd_map_cache_entry *lookup_map_cache_exact(
         lisp_addr_t             eid,
-        int                     prefixlen)
+        int                     prefixlen,
+        packet_tuple            *tuple)
 {
+    lispd_map_cache_entry   *head = NULL;
     lispd_map_cache_entry   *entry = NULL;
     patricia_node_t         *node  = NULL;
 
@@ -232,8 +298,30 @@ lispd_map_cache_entry *lookup_map_cache_exact(
     if ( node == NULL ){
           return(NULL);
     }
-    entry = (lispd_map_cache_entry *)(node->data);
+    head = (lispd_map_cache_entry *)(node->data);
 
+    entry = get_map_cache_entry_by_tuple(head,tuple);
+    
+    return(entry);
+}
+
+lispd_map_cache_entry *lookup_map_cache_exact_with_wildcards(
+    lisp_addr_t             eid,
+    int                     prefixlen,
+    packet_tuple            *tuple)
+{
+    lispd_map_cache_entry   *head = NULL;
+    lispd_map_cache_entry   *entry = NULL;
+    patricia_node_t         *node  = NULL;
+    
+    node = lookup_map_cache_exact_node(eid,prefixlen);
+    if ( node == NULL ){
+        return(NULL);
+    }
+    head = (lispd_map_cache_entry *)(node->data);
+    
+    entry = get_map_cache_entry_by_tuple_with_wildcards(head,tuple);
+    
     return(entry);
 }
 
@@ -273,9 +361,12 @@ lispd_map_cache_entry *lookup_nonce_in_no_active_map_caches(
  */
 void del_map_cache_entry_from_db(
         lisp_addr_t eid,
-        int prefixlen)
+        int prefixlen,
+        packet_tuple *tuple)
 {
     lispd_map_cache_entry *entry    = NULL;
+    lispd_map_cache_entry *entry_previous    = NULL;
+    int                    tuple_found = FALSE;
     patricia_node_t       *node   = NULL;
 
     node = lookup_map_cache_exact_node(eid, prefixlen);
@@ -287,15 +378,63 @@ void del_map_cache_entry_from_db(
     }
 
     /*
-     * Remove the entry from the trie
+     * Remove the entry
      */
     entry = (lispd_map_cache_entry *)(node->data);
-    if (eid.afi==AF_INET)
-        patricia_remove(AF4_map_cache, node);
-    else
-        patricia_remove(AF6_map_cache, node);
+    
+    if(entry->next == NULL){ // There is only one entry
+    
+        if((tuple != NULL) && (is_same_tuple(tuple,get_tuple_from_mapping(entry->mapping)) != TRUE)){
+        
+            lispd_log_msg(LISP_LOG_ERR,"Single entry doesn't match tuple. Entry: %s/%d", get_char_from_lisp_addr_t(eid),prefixlen);
+            
+            return;
+        }
+        
+        if (eid.afi==AF_INET)
+            patricia_remove(AF4_map_cache, node);
+        else
+            patricia_remove(AF6_map_cache, node);
+        
+        free_map_cache_entry(entry);
+        
+        return;
+    }
 
+
+    if(is_same_tuple(tuple,get_tuple_from_mapping(entry->mapping))){ // We have to remove the first entry in the list
+        if (eid.afi==AF_INET){
+            patricia_remove(AF4_map_cache, node);
+        }else{
+            patricia_remove(AF6_map_cache, node);
+        }
+
+        add_map_cache_entry_to_db(entry->next);
+
+        free_map_cache_entry(entry);
+
+        return;
+    }
+
+    // The entry is at least the second one
+    do{
+        
+        entry_previous = entry;
+        entry = entry->next;
+    
+        tuple_found = is_same_tuple(tuple,get_tuple_from_mapping(entry->mapping));
+        
+    }while ((tuple_found == FALSE) && (entry->next != NULL));
+    
+    if(tuple_found == FALSE){
+        lispd_log_msg(LISP_LOG_ERR,"No entry matchs tuple. Entry: %s/%d", get_char_from_lisp_addr_t(eid),prefixlen);
+        return;
+    }
+    
+    entry_previous->next = entry->next;
+    
     free_map_cache_entry(entry);
+    
 }
 
 /*
@@ -360,7 +499,7 @@ void map_cache_entry_expiration(
 
     lispd_log_msg(LISP_LOG_DEBUG_1,"Got expiration for EID %s/%d", get_char_from_lisp_addr_t(entry->mapping->eid_prefix),
             entry->mapping->eid_prefix_length);
-    del_map_cache_entry_from_db(entry->mapping->eid_prefix, entry->mapping->eid_prefix_length);
+    del_map_cache_entry_from_db(entry->mapping->eid_prefix, entry->mapping->eid_prefix_length, NULL); //XXX warning NULL. Probable segfault
 }
 
 
@@ -381,7 +520,11 @@ void dump_map_cache_db(int log_level)
     for (ctr = 0 ; ctr < 2 ; ctr++){
         PATRICIA_WALK(dbs[ctr]->head, node) {
             entry = ((lispd_map_cache_entry *)(node->data));
-            dump_map_cache_entry (entry, log_level);
+            while (entry != NULL){
+                dump_map_cache_entry (entry, log_level);
+                entry = entry->next;
+            }
+            
         } PATRICIA_WALK_END;
     }
     lispd_log_msg(log_level,"*******************************************************\n");

@@ -19,8 +19,21 @@ GENGETOPT	= gengetopt
 ERROR		= false
 
 
+
 ifeq "$(platform)" ""
 CFLAGS		+= -Wall -g 
+LIBS		= -lconfuse -lssl -lcrypto -lrt -lm
+else
+ifeq "$(platform)" "lfclient"
+CFLAGS		+= -Wall -g -DLISPFLOW_CLIENT
+LIBS		= -lconfuse -lssl -lcrypto -lrt -lm
+else
+ifeq "$(platform)" "lfctrller"
+CFLAGS		+= -Wall -g -DLISPFLOW_CTRLLER
+LIBS		= -lconfuse -lssl -lcrypto -lrt -lm
+else
+ifeq "$(platform)" "lfms"
+CFLAGS		+= -Wall -g -DLISPFLOW_MS
 LIBS		= -lconfuse -lssl -lcrypto -lrt -lm
 else
 ifeq "$(platform)" "router"
@@ -32,6 +45,9 @@ CFLAGS		+= -Wall -g -DROUTER -DOPENWRT
 LIBS		= -lconfuse -lssl -lcrypto -lrt -lm -luci
 else
 ERROR		= true
+endif
+endif
+endif
 endif
 endif
 endif
@@ -49,12 +65,29 @@ OBJS		= cmdline.o lispd.o lispd_config.o lispd_log.o	\
 		  lispd_smr.o lispd_tun.o lispd_input.o lispd_output.o lispd_sockets.o \
 		  lispd_locator.o lispd_map_cache.o
 
+OBJS2		= cmdline.o lispd_config.o lispd_log.o	\
+		  lispd_lib.o lispd_map_register.o	lispd_mapping.o \
+		  patricia/patricia.o \
+		  cksum.o lispd_map_request.o \
+		  lispd_map_reply.o lispd_iface_mgmt.o \
+		  lispd_iface_list.o lispd_map_notify.o lispd_pkt_lib.o \
+		  lispd_timers.o lispd_local_db.o lispd_map_cache_db.o \
+		  lispd_afi.o lispd_nonce.o lispd_rloc_probing.o \
+		  lispd_smr.o lispd_tun.o lispd_input.o lispd_output.o lispd_sockets.o \
+		  lispd_locator.o lispd_map_cache.o 
+		  
 EXE		= lispd
 PREFIX		= /usr/local/sbin
 
 $(EXE): $(OBJS) 
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS) $(LIBS)
+	
+controller: $(OBJS2) controller.o
+	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS) $(LIBS)
 
+mapserver: $(OBJS2) mapserver.o
+	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS) $(LIBS)
+	
 #
 #	gengetops generates this...
 #

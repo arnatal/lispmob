@@ -154,6 +154,10 @@ int get_lisp_addr_from_char (char *address, lisp_addr_t *lisp_addr);
  * 			 2: Addr2 is bigger than addr1
  */
 int compare_lisp_addr_t (lisp_addr_t *addr1, lisp_addr_t *addr2);
+
+int is_same_tuple(packet_tuple *tuple1, packet_tuple *tuple2);
+
+int is_same_tuple_with_wildcards(packet_tuple *tuple1, packet_tuple *tuple2);
 /*
  * Parse address and fill lisp_addr and mask.
  * Return GOOD if no error has been found

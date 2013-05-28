@@ -56,6 +56,7 @@
  */
 typedef struct lispd_map_cache_entry_ {
     lispd_mapping_elt           *mapping;
+    void                        *next; //LISPflow
     uint8_t                     how_learned:2;
     uint8_t                     actions:2;
     uint8_t                     active:1;       /* TRUE if we have received a map reply for this entry */
@@ -72,6 +73,8 @@ typedef struct lispd_map_cache_entry_ {
 }lispd_map_cache_entry;
 
 /****************************************  FUNCTIONS **************************************/
+
+// packet_tuple *get_tuple_from_map_cache_entry(lispd_map_cache_entry *entry);
 
 /*
  * Create a map cache entry and save it in the database

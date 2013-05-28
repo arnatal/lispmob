@@ -34,15 +34,20 @@
 #include "lispd.h"
 #include "lispd_local_db.h"
 
-int pkt_get_mapping_record_length(lispd_mapping_elt *mapping);
+int pkt_get_mapping_record_length(lispd_mapping_elt *mapping, int is_LISPflow);
 
 
 void *pkt_fill_eid(void *offset, lispd_mapping_elt *mapping);
 
+void *pkt_fill_lcaf_5tuple(
+        void                    *offset,
+        packet_tuple            *tuple);
+
 void *pkt_fill_mapping_record(
     lispd_pkt_mapping_record_t              *rec,
     lispd_mapping_elt                       *mapping,
-    lisp_addr_t                             *probed_rloc);
+    lisp_addr_t                             *probed_rloc,
+    uint8_t                                 action);
 
 /*
  *  get_mapping_length
@@ -51,7 +56,7 @@ void *pkt_fill_mapping_record(
  *  so we can allocate  memory for the packet....
  */
 
-int get_mapping_length(lispd_mapping_elt *mapping);
+int get_mapping_length(lispd_mapping_elt *mapping, int is_LISPflow);
 
 
 /*

@@ -124,6 +124,14 @@ int process_map_request_record(
         uint8_t rloc_probe,
         uint64_t nonce);
 
+int ms_mode_process_map_request_record(
+        uint8_t **cur_ptr,
+        lisp_addr_t *src_rloc,
+        lisp_addr_t *dst_rloc,
+        uint16_t dst_port,
+        uint8_t rloc_probe,
+        uint64_t nonce);
+
 /* Build a Map Request paquet */
 
  uint8_t *build_map_request_pkt(
@@ -257,7 +265,7 @@ int add_encap_headers(
          if (remote_rloc == NULL &&  get_default_ctrl_iface (itr_rloc[i].afi) != NULL){
              remote_rloc = &itr_rloc[i];
          }
-     }
+     } 
      if (remote_rloc == NULL){
          lispd_log_msg(LISP_LOG_DEBUG_1,"process_map_request_msg: Couldn't generate map replay - "
                  "No supported afi in the list of ITR-RLOCS");
@@ -271,6 +279,65 @@ int add_encap_headers(
      return(GOOD);
  }
 
+int ms_mode_process_map_request_msg(
+         uint8_t        *packet,
+         lisp_addr_t    *local_rloc,
+         uint16_t       dst_port) {
+
+     lisp_addr_t                itr_rloc[32];
+     lisp_addr_t                *remote_rloc            = NULL;
+     int                        itr_rloc_count          = 0;
+     int                        itr_rloc_afi            = 0;
+     uint8_t                    *cur_ptr                = NULL;
+     int                        len                     = 0;
+     lispd_pkt_map_request_t    *msg                    = NULL;
+     int                        i                       = 0;
+
+     /* If the packet is an Encapsulated Map Request, verify checksum and remove the inner IP header */
+
+     if (((lispd_pkt_encapsulated_control_t *) packet)->type == LISP_ENCAP_CONTROL_TYPE) {
+         if ((err = process_encapsulated_map_request_headers(packet,&len,&dst_port)) != GOOD){
+             return (BAD);
+         }
+         msg = (lispd_pkt_map_request_t *) CO(packet, len);
+     } else if (((lispd_pkt_map_request_t *) packet)->type == LISP_MAP_REQUEST) {
+         msg = (lispd_pkt_map_request_t *) packet;
+     } else
+         return(BAD); //we should never reach this return()
+         
+     cur_ptr = (uint8_t *)&(msg->source_eid_afi);
+     
+     printf("--------------- Source EID afi %d\n",ntohs(msg->source_eid_afi));
+     cur_ptr = CO(cur_ptr,sizeof(uint16_t));
+     cur_ptr = CO(cur_ptr,get_addr_len(lisp2inetafi(ntohs(msg->source_eid_afi))));
+         
+
+     /* Get the array of ITR-RLOCs */
+     itr_rloc_count = msg->additional_itr_rloc_count + 1;
+     for (i = 0; i < itr_rloc_count; i++) {
+         itr_rloc_afi = lisp2inetafi(ntohs(*(uint16_t *)cur_ptr));
+         cur_ptr = CO(cur_ptr, sizeof(uint16_t));
+         memcpy(&(itr_rloc[i].address), cur_ptr, get_addr_len(itr_rloc_afi));
+         itr_rloc[i].afi = itr_rloc_afi;
+         cur_ptr = CO(cur_ptr, get_addr_len(itr_rloc_afi));
+         // Select the first accessible rloc from the ITR-RLOC list
+         if (remote_rloc == NULL &&  get_default_ctrl_iface (itr_rloc[i].afi) != NULL){
+             remote_rloc = &itr_rloc[i];
+         }
+     }
+     if (remote_rloc == NULL){
+         lispd_log_msg(LISP_LOG_DEBUG_1,"process_map_request_msg: Couldn't generate map replay - "
+                 "No supported afi in the list of ITR-RLOCS");
+         return (BAD);
+     }
+
+     /* Process record and send Map Reply for each one */
+     for (i = 0; i < msg->record_count; i++) {
+         ms_mode_process_map_request_record(&cur_ptr, local_rloc, remote_rloc, dst_port, msg->rloc_probe, msg->nonce);
+     }
+     return(GOOD);
+ }
+ 
  /*
   * Process encapsulated map request header:  lisp header and the interal IP and UDP header
   */
@@ -416,6 +483,71 @@ int add_encap_headers(
      return (err);
  }
 
+ int ms_mode_process_map_request_record(
+         uint8_t **cur_ptr,
+         lisp_addr_t *local_rloc,
+         lisp_addr_t *remote_rloc,
+         uint16_t dst_port,
+         uint8_t rloc_probe,
+         uint64_t nonce)
+ {
+     lispd_pkt_map_request_eid_prefix_record_t  *record                 = NULL;
+     lispd_mapping_elt                          *requested_mapping      = NULL;
+     lispd_map_cache_entry                      *entry                  = NULL;
+     map_reply_opts                             opts;
+     lisp_addr_t                                aux_eid_prefix;
+     int                                        aux_eid_prefix_length   = 0;
+     int                                        aux_iid                 = -1;
+
+     /* Get the requested EID prefix */
+     record = (lispd_pkt_map_request_eid_prefix_record_t *)*cur_ptr;
+     /* Auxiliar lispd_mapping_elt created to be filled with pkt_process_eid_afi */
+     requested_mapping = new_map_cache_mapping(aux_eid_prefix, aux_eid_prefix_length, aux_iid);
+     if (requested_mapping == NULL){
+         return (BAD);
+     }
+     *cur_ptr = (uint8_t *)&(record->eid_prefix_afi);
+     if ((err=pkt_process_eid_afi(cur_ptr, requested_mapping))!=GOOD){
+         lispd_log_msg(LISP_LOG_DEBUG_2,"process_map_request_record: Requested EID could not be processed");
+         free_mapping_elt (requested_mapping, FALSE);
+         return (err);
+     }
+     requested_mapping->eid_prefix_length = record->eid_prefix_length;
+
+     /* Check the existence of the requested EID */
+     /*  We don't use prefix mask and use by default 32 or 128*/
+     entry = lookup_map_cache_exact(requested_mapping->eid_prefix,requested_mapping->eid_prefix_length,get_tuple_from_mapping(requested_mapping));
+
+     if(entry == NULL){
+         lispd_log_msg(LISP_LOG_DEBUG_1,"MS: No exact tuple found on the map-cache. Checking wildcard ports. EID addr: %s/%d",
+                       get_char_from_lisp_addr_t(requested_mapping->eid_prefix),
+                       requested_mapping->eid_prefix_length);
+         entry = lookup_map_cache_exact_with_wildcards(requested_mapping->eid_prefix,requested_mapping->eid_prefix_length,get_tuple_from_mapping(requested_mapping));
+     }
+
+     if (entry == NULL){
+         lispd_log_msg(LISP_LOG_DEBUG_1,"The requested entry is not stored on this MapServer. EID addr: %s/%d",
+                 get_char_from_lisp_addr_t(requested_mapping->eid_prefix),
+                 requested_mapping->eid_prefix_length);
+         free_mapping_elt (requested_mapping, FALSE);
+         return (BAD);
+     }
+
+     lispd_log_msg(LISP_LOG_DEBUG_1,"MS: Entry found!");
+     
+     free_mapping_elt (requested_mapping, FALSE);
+
+     /* Set flags for Map-Reply */
+     opts.send_rec   = 1;
+     opts.echo_nonce = 0;
+     opts.rloc_probe = rloc_probe;
+     opts.action = entry->actions;
+
+     err = build_and_send_map_reply_msg(entry->mapping, local_rloc, remote_rloc, dst_port, nonce, opts);
+
+     return (err);
+ }
+ 
 /*
  *  build_and_send_map_request --
  *
@@ -630,10 +762,18 @@ uint8_t *build_map_request_pkt(
     request_eid_record = (lispd_pkt_map_request_eid_prefix_record_t *)cur_ptr;
     request_eid_record->eid_prefix_length = requested_mapping->eid_prefix_length;
 
+    
+#ifdef LISPFLOW_CLIENT
+    cur_ptr = pkt_fill_lcaf_5tuple(&(request_eid_record->eid_prefix_afi),get_tuple_from_mapping(requested_mapping));
+#else
     cur_ptr = pkt_fill_eid(&(request_eid_record->eid_prefix_afi),requested_mapping);
+#endif
+
+    printf("Map-Request building: Tuple filled\n");
+    
     if (mrp->map_data_present == 1){
         /* Map-Reply Record */
-        if ((pkt_fill_mapping_record(cur_ptr, src_mapping, NULL))== NULL) {
+        if ((pkt_fill_mapping_record(cur_ptr, src_mapping, NULL, 0))== NULL) {
             lispd_log_msg(LISP_LOG_DEBUG_2,"build_map_request_pkt: Couldn't buil map reply record for map request. "
                     "Map Request will not be send");
             free(packet);
@@ -641,6 +781,8 @@ uint8_t *build_map_request_pkt(
         }
     }
 
+    printf("Map-Request building: Map Data fields added\n");
+    
     /* Add Encapsulated (Inner) control header*/
     if (encap){
 
@@ -664,6 +806,8 @@ uint8_t *build_map_request_pkt(
         }
     }
 
+    printf("Map-Request building: Added inner encapsulation header\n");
+    
     return (packet);
 }
 
@@ -744,7 +888,7 @@ int get_map_request_length (lispd_mapping_elt *requested_mapping, lispd_mapping_
     int locator_count = 0, aux_locator_count = 0;
     mr_len = sizeof(lispd_pkt_map_request_t);
     if (src_mapping != NULL){
-        mr_len += get_mapping_length(src_mapping);
+        mr_len += get_mapping_length(src_mapping, FALSE);
         /* Calculate locators length */
         mr_len += get_up_locators_length(src_mapping->head_v4_locators_list,&aux_locator_count);
         locator_count = aux_locator_count;
@@ -764,10 +908,10 @@ int get_map_request_length (lispd_mapping_elt *requested_mapping, lispd_mapping_
     /* Record size */
     mr_len += sizeof(lispd_pkt_map_request_eid_prefix_record_t);
     // We supose that the requested EID has the same AFI as the source EID
-    mr_len += get_mapping_length(requested_mapping);
+    mr_len += get_mapping_length(requested_mapping, TRUE);
     /* Add the Map-Reply Record */
     if (src_mapping != NULL)
-        mr_len += pkt_get_mapping_record_length(src_mapping);
+        mr_len += pkt_get_mapping_record_length(src_mapping,FALSE);
 
     return mr_len;
 }
@@ -850,8 +994,9 @@ int send_map_request_miss(timer *t, void *arg)
                         get_char_from_lisp_addr_t(map_cache_entry->mapping->eid_prefix),
                         map_cache_entry->mapping->eid_prefix_length,
                         nonces->retransmits -1);
+        
         del_map_cache_entry_from_db(map_cache_entry->mapping->eid_prefix,
-                map_cache_entry->mapping->eid_prefix_length);
+                map_cache_entry->mapping->eid_prefix_length,get_tuple_from_mapping(map_cache_entry->mapping));
 
     }
     return GOOD;

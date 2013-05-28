@@ -72,7 +72,7 @@
 #include "lispd_sockets.h"
 
 int process_map_reply_record(uint8_t **cur_ptr, uint64_t nonce);
-int process_map_reply_locator(uint8_t  **offset, lispd_mapping_elt *mapping);
+//int process_map_reply_locator(uint8_t  **offset, lispd_mapping_elt *mapping);
 uint8_t *build_map_reply_pkt(
         lispd_mapping_elt *mapping,
         lisp_addr_t *probed_rloc,
@@ -166,7 +166,7 @@ int process_map_reply_record(uint8_t **cur_ptr, uint64_t nonce)
     /* If the nonce is not found in the no active cache enties, then it should be an active cache entry */
     else {
         /* Serch map cache entry exist*/
-        cache_entry = lookup_map_cache_exact(mapping->eid_prefix,mapping->eid_prefix_length);
+        cache_entry = lookup_map_cache_exact(mapping->eid_prefix,mapping->eid_prefix_length, get_tuple_from_mapping(mapping));
         if (cache_entry == NULL){
             lispd_log_msg(LISP_LOG_DEBUG_2,"process_map_reply_record:  No map cache entry found for %s/%d",
                     get_char_from_lisp_addr_t(mapping->eid_prefix),mapping->eid_prefix_length);
@@ -225,8 +225,13 @@ int process_map_reply_record(uint8_t **cur_ptr, uint64_t nonce)
     if (!cache_entry->expiry_cache_timer){
         cache_entry->expiry_cache_timer = create_timer (EXPIRE_MAP_CACHE_TIMER);
     }
+#ifdef LISPFLOW_CLIENT
+    start_timer(cache_entry->expiry_cache_timer, 10, (timer_callback)map_cache_entry_expiration,
+            (void *)cache_entry);
+#else    
     start_timer(cache_entry->expiry_cache_timer, cache_entry->ttl*60, (timer_callback)map_cache_entry_expiration,
                      (void *)cache_entry);
+#endif
 
     return (TRUE);
 }
@@ -325,7 +330,7 @@ uint8_t *build_map_reply_pkt(lispd_mapping_elt *mapping,
 
 
     *map_reply_msg_len = sizeof(lispd_pkt_map_reply_t) +
-            pkt_get_mapping_record_length(mapping);
+            pkt_get_mapping_record_length(mapping,TRUE);
 
     if ((packet = malloc(*map_reply_msg_len)) == NULL) {
         lispd_log_msg(LISP_LOG_WARNING, "build_map_reply_pkt: Unable to allocate memory for  Map Reply message(%d) %s",
@@ -349,7 +354,7 @@ uint8_t *build_map_reply_pkt(lispd_mapping_elt *mapping,
         mapping_record = (lispd_pkt_mapping_record_t *)
                      CO(map_reply_msg, sizeof(lispd_pkt_map_reply_t));
 
-        if (pkt_fill_mapping_record(mapping_record, mapping, probed_rloc) == NULL) {
+        if (pkt_fill_mapping_record(mapping_record, mapping, probed_rloc, opts.action) == NULL) {
             free(packet);
             return(NULL);
         }

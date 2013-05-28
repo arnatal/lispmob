@@ -47,7 +47,7 @@
 int get_locators_length(lispd_locators_list *locators_list);
 
 
-int pkt_get_mapping_record_length(lispd_mapping_elt *mapping)
+int pkt_get_mapping_record_length(lispd_mapping_elt *mapping, int is_LISPflow)
 {
     lispd_locators_list *locators_list[2] = {
             mapping->head_v4_locators_list,
@@ -62,7 +62,7 @@ int pkt_get_mapping_record_length(lispd_mapping_elt *mapping)
             continue;
         loc_length += get_locators_length(locators_list[ctr]);
     }
-    eid_length = get_mapping_length(mapping);
+    eid_length = get_mapping_length(mapping,is_LISPflow);
     length = sizeof(lispd_pkt_mapping_record_t) + eid_length +
             (mapping->locator_count * sizeof(lispd_pkt_mapping_record_locator_t)) +
             loc_length;
@@ -150,7 +150,7 @@ int get_up_locators_length(
  */
 
 
-int get_mapping_length(lispd_mapping_elt *mapping)
+int get_mapping_length(lispd_mapping_elt *mapping, int is_LISPflow)
 {
     int ident_len = 0;
     switch (mapping->eid_prefix.afi) {
@@ -167,6 +167,12 @@ int get_mapping_length(lispd_mapping_elt *mapping)
     if (mapping->iid >= 0)
         ident_len += sizeof(lispd_pkt_lcaf_t) + sizeof(lispd_pkt_lcaf_iid_t);
 
+    if(is_LISPflow){
+    
+    // dirty hack for lispflow (reserve more space for LISPflow by default)
+    ident_len = ((ident_len + sizeof(uint16_t))*2) +sizeof(lispd_pkt_lcaf_t) + sizeof(lispd_pkt_lcaf_5tuple_t);
+    }
+    
     return ident_len;
 }
 
@@ -211,11 +217,71 @@ void *pkt_fill_eid(
     return CO(eid_ptr, eid_addr_len);
 }
 
+void *pkt_fill_lcaf_5tuple(
+        void                    *offset,
+        packet_tuple            *tuple)
+{
+    uint16_t                *afi_ptr;
+    lispd_pkt_lcaf_t        *lcaf_ptr;
+    lispd_pkt_lcaf_5tuple_t *tuple_ptr;
+    void                    *eid_ptr;
+    int                     eid_addr_len;
+
+    afi_ptr = (uint16_t *)offset;
+    *afi_ptr = htons(LISP_AFI_LCAF);
+    
+    printf("LCAF AFI %d\n", ntohs(*afi_ptr));
+    lcaf_ptr = (lispd_pkt_lcaf_t *) CO(offset, sizeof(uint16_t));
+
+    lcaf_ptr->rsvd1 = 0;
+    lcaf_ptr->flags = 0;
+    lcaf_ptr->type  = LCAF_5_TUPLE;
+    lcaf_ptr->rsvd2 = 0; 
+    eid_addr_len = get_addr_len(tuple->dst_addr.afi) + sizeof(uint16_t); // afi+address fields
+    lcaf_ptr->len   = htons(sizeof(lispd_pkt_lcaf_5tuple_t) + 2 * eid_addr_len); //Two addresses
+
+    printf("length: %d in hex %x\n ",ntohs(lcaf_ptr->len),ntohs(lcaf_ptr->len));
+    
+    printf("5 tuple type %d\n", lcaf_ptr->type);
+    
+    tuple_ptr  = (lispd_pkt_lcaf_5tuple_t *) CO(lcaf_ptr, sizeof(lispd_pkt_lcaf_t));
+    
+    tuple_ptr->src_port = htons(tuple->src_port);
+    tuple_ptr->src_port_range = 0;
+    tuple_ptr->dst_port = htons(tuple->dst_port);
+    tuple_ptr->dst_port_range = 0;
+    tuple_ptr->protocol = htons(tuple->protocol);
+    tuple_ptr->src_ml = 32; //IPv4 hardcoded
+    tuple_ptr->dst_ml = 32; //IPv4 hardcoded
+    
+    afi_ptr  = (uint16_t *) CO(tuple_ptr, sizeof(lispd_pkt_lcaf_5tuple_t));
+    *afi_ptr = htons(LISP_AFI_IP);//htons(get_lisp_afi(tuple->src_addr.afi,&len)); //IPv4 hardcoded 
+
+    eid_ptr = (void *)CO(afi_ptr, sizeof(uint16_t));
+    
+    if ((copy_addr(eid_ptr,&(tuple->src_addr), 0)) == 0) {
+        lispd_log_msg(LISP_LOG_DEBUG_3, "pkt_fill_lcaf_tuple: copy src addr failed");
+        return NULL;
+    }
+    
+    afi_ptr  = (uint16_t *) CO(eid_ptr,  get_addr_len(tuple->src_addr.afi));
+    *afi_ptr = htons(LISP_AFI_IP);//htons(get_lisp_afi(tuple->dst_addr.afi,&len)); //IPv4 hardcoded
+
+    eid_ptr = (void *)CO(afi_ptr, sizeof(uint16_t));
+    
+    if ((copy_addr(eid_ptr,&(tuple->dst_addr), 0)) == 0) {
+        lispd_log_msg(LISP_LOG_DEBUG_3, "pkt_fill_lcaf_tuple: copy dst addr failed");
+        return NULL;
+    }
+
+    return CO(eid_ptr, get_addr_len(tuple->dst_addr.afi));
+}
 
 void *pkt_fill_mapping_record(
     lispd_pkt_mapping_record_t              *rec,
     lispd_mapping_elt                       *mapping,
-    lisp_addr_t                             *probed_rloc)
+    lisp_addr_t                             *probed_rloc,
+    uint8_t                                 action)
 {
     int                                     cpy_len             = 0;
     lispd_pkt_mapping_record_locator_t      *loc_ptr            = NULL;
@@ -227,15 +293,21 @@ void *pkt_fill_mapping_record(
         return NULL;
 
     rec->ttl                    = htonl(DEFAULT_MAP_REGISTER_TIMEOUT);
+
     rec->locator_count          = mapping->locator_count;
     rec->eid_prefix_length      = mapping->eid_prefix_length;
-    rec->action                 = 0;
+    rec->action                 = action;
     rec->authoritative          = 1;
     rec->version_hi             = 0;
     rec->version_low            = 0;
-
+    
+#ifdef LISPFLOW_CTRLLER
+    printf("Filling tuple\n");
+    loc_ptr = (lispd_pkt_mapping_record_locator_t *)pkt_fill_lcaf_5tuple(&(rec->eid_prefix_afi),get_tuple_from_mapping(mapping));
+#else
     loc_ptr = (lispd_pkt_mapping_record_locator_t *)pkt_fill_eid(&(rec->eid_prefix_afi), mapping);
-
+#endif    
+    
     if (loc_ptr == NULL){
         return NULL;
     }
@@ -310,12 +382,12 @@ int extract_5_tuples_from_packet (
 
     if (tuple->protocol == IPPROTO_UDP){
         udp = (struct udphdr *)CO(packet,len);
-        tuple->src_port = udp->source;
-        tuple->dst_port = udp->dest;
+        tuple->src_port = ntohs(udp->source);
+        tuple->dst_port = ntohs(udp->dest);
     }else if (tuple->protocol == IPPROTO_TCP){
         tcp = (struct tcphdr *)CO(packet,len);
-        tuple->src_port = tcp->source;
-        tuple->dst_port = tcp->dest;
+        tuple->src_port = ntohs(tcp->source);
+        tuple->dst_port = ntohs(tcp->dest);
     }else{//If protocol is not TCP or UDP, ports of the tuple set to 0
         tuple->src_port = 0;
         tuple->dst_port = 0;
